@@ -2,13 +2,12 @@ package store
 
 import (
 	"errors"
-	"github.com/gascore/gas/web"
 	webStore "github.com/gascore/std/localStorage"
 )
 
 // LSSyncOnCreate syncronize data from localStorage and store data. Use in OnCreate hook 
 func LSSyncOnCreate(s *Store) error {
-	var localStorage = webStore.NewDataStore(webStore.JSONEncoding, web.GetLocalStore)
+	var localStorage = webStore.NewDataStore(webStore.JSONEncoding)
 
 	var dataRaw interface{}
 	err := localStorage.Get("data", &dataRaw)
@@ -39,7 +38,7 @@ func LSSyncOnCreate(s *Store) error {
 
 // LSSyncAfterEmit syncronize data from localStorage and store data. Use in AfterEmit hook
 func LSSyncAfterEmit(s *Store, eventName string, updatesMap map[string]interface{}, values []interface{}) error {
-	var localStorage = webStore.NewDataStore(webStore.JSONEncoding, web.GetLocalStore)
+	var localStorage = webStore.NewDataStore(webStore.JSONEncoding)
 
 	err := localStorage.Set("data", s.Data)
 	if err != nil {

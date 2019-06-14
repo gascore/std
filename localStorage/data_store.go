@@ -22,8 +22,8 @@ type DataStore struct {
 //
 // For getLocalStorage you can use wasm.GetLocalStorage() (github.com/gascore/gas/web/wasm)
 // or gojs.GetLocalStorage() (github.com/gascore/gas/web/wasm)
-func NewDataStore(encoding EncoderDecoder, getLocalStorage func() gas.Object) *DataStore {
-	ok, localStorage := DetectStorage(getLocalStorage)
+func NewDataStore(encoding EncoderDecoder) *DataStore {
+	ok, localStorage := DetectStorage()
 	if !ok {
 		panic(errors.New("cannot create new data store"))
 	}

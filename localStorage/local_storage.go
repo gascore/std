@@ -7,7 +7,9 @@ package store
 import (
 	"errors"
 	"fmt"
+	"github.com/gascore/dom"
 	"github.com/gascore/gas"
+	"github.com/gascore/gas/web"
 )
 
 // ErrLocalStorageNotSupported is returned if localStorage is not supported.
@@ -32,15 +34,8 @@ func newItemNotFoundError(format string, args ...interface{}) ItemNotFoundError 
 }
 
 // DetectStorage detects and (re)initializes the localStorage.
-func DetectStorage(getLocalStorage func() gas.Object) (ok bool, localStorage gas.Object) {
-	defer func() {
-		if r := recover(); r != nil {
-			localStorage = nil
-			ok = false
-		}
-	}()
-
-	localStorage = getLocalStorage()
+func DetectStorage() (ok bool, localStorage gas.Object) {
+	localStorage = web.ToUniteObject(dom.GetWindow().LocalStorage())
 
 	if localStorage == nil {
 		return false, nil
