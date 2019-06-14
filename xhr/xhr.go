@@ -171,15 +171,15 @@ func (r *Request) Send(data interface{}) error {
 		panic("must not use a Request for multiple requests")
 	}
 	r.ch = make(chan error, 1)
-	r.v.Call("addEventListener", "load", false, func(o *js.Value) {
+	r.v.Call("addEventListener", "load", js.NewEventCallback(func(o js.Value) {
 		go func() { r.ch <- nil }()
-	})
-	r.v.Call("addEventListener", "error", false, func(o *js.Value) {
+	}))
+	r.v.Call("addEventListener", "error", js.NewEventCallback(func(o js.Value) {
 		go func() { r.ch <- ErrFailure }()
-	})
-	r.v.Call("addEventListener", "timeout", false, func(o*js.Value) {
+	}))
+	r.v.Call("addEventListener", "timeout", js.NewEventCallback(func(o js.Value) {
 		go func() { r.ch <- ErrTimeout }()
-	})
+	}))
 
 	r.v.Call("send", data)
 	val := <-r.ch
