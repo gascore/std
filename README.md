@@ -7,5 +7,3 @@ std contains:
 3. cookie - bindings for the cookies API
 4. localStorage - bindings or the localStorage API
 5. components - collection of useful gas components 
-
-
