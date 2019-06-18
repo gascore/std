@@ -86,9 +86,7 @@ func (ctx Ctx) link(getPath func() string, push func(*gas.Component, gas.Object)
 	return gas.NE(
 		&gas.Component{
 			Tag: "a",
-			Attrs: map[string]string{
-				"href": "#",
-			},
+			Attrs: e.Attrs,
 			Binds: map[string]gas.Bind{
 				"href": func() string {
 					return getPath()
@@ -109,10 +107,10 @@ func beforePush(push func(*gas.Component, gas.Object)) func(*gas.Component, gas.
 	}
 }
 
-func (i RouteInfo) LinkStatic(to string, replace bool, e gas.External) *gas.Component {
-	return i.Ctx.LinkStatic(to, replace, e)
+func (i RouteInfo) Link(to string, replace bool, e gas.External) *gas.Component {
+	return i.Ctx.Link(to, replace, e)
 }
-func (ctx *Ctx) LinkStatic(to string, replace bool, e gas.External) *gas.Component {
+func (ctx *Ctx) Link(to string, replace bool, e gas.External) *gas.Component {
 	return ctx.link(
 		func() string {
 			return ctx.Settings.BaseName + to
@@ -123,10 +121,10 @@ func (ctx *Ctx) LinkStatic(to string, replace bool, e gas.External) *gas.Compone
 		e)
 }
 
-func (i RouteInfo) LinkDynamic(name string, params, queries map[string]string, replace bool, e gas.External) *gas.Component {
-	return i.Ctx.LinkDynamic(name, params, queries, replace, e)
+func (i RouteInfo) LinkWithParams(name string, params, queries map[string]string, replace bool, e gas.External) *gas.Component {
+	return i.Ctx.LinkWithParams(name, params, queries, replace, e)
 }
-func (ctx *Ctx) LinkDynamic(name string, params, queries map[string]string, replace bool, e gas.External) *gas.Component {
+func (ctx *Ctx) LinkWithParams(name string, params, queries map[string]string, replace bool, e gas.External) *gas.Component {
 	return ctx.link(
 		func() string {
 			return ctx.Settings.BaseName + ctx.fillPath(name, params, queries)
