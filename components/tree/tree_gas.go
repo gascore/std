@@ -121,7 +121,7 @@ Binds: map[string]gas.Bind{
 Show: func(p *gas.Component) bool {
 	return !this.Get(`isHidden`).(bool)
 },
-},gas.NewForByData(toIA(c.Items), func(i int, nItem interface{}) interface{} {
+},gas.NewForByData(toIA(c.Items), this, func(i interface{}, nItem interface{}) interface{} {
  return gas.NE(
 &gas.Component{Tag:"li",},renderItem(nItem.(Item), c),)}),),),)},)
 }

@@ -40,6 +40,11 @@ func renderItem(item Item, c Config) *gas.Component {
 gas.NE(
 &gas.Component{Tag:"div",
 
+If: func(p *gas.Component) bool {
+	return item.IsDirectory
+},
+
+
 Binds: map[string]gas.Bind{
 "class": func() string {
 	return fmt.Sprintf(`tree-item tree-%s-item directory-item`, c.Name)
@@ -48,12 +53,7 @@ Binds: map[string]gas.Bind{
 },
 Handlers: map[string]gas.Handler{
 "click": func(p *gas.Component, e gas.Object) { this.Method(`emitClickEvent`) },
-},
-
-If: func(p *gas.Component) bool {
-	return item.IsDirectory
-},
-},
+},},
 gas.NE(
 &gas.Component{Tag:"div",
 Attrs: map[string]string{"class": "directory-item-header",
@@ -101,7 +101,7 @@ gas.NE(
 If: func(p *gas.Component) bool {
 	return !this.Get(`isHidden`).(bool)
 },
-},gas.NewForByData(toIA(item.Childes), func(i int, nItem interface{}) interface{} {
+},gas.NewForByData(toIA(item.Childes), this, func(i interface{}, nItem interface{}) interface{} {
  return gas.NE(
 &gas.Component{Tag:"li",},renderItem(nItem.(Item), c),)}),),),
 gas.NE(
