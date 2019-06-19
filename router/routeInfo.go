@@ -9,6 +9,7 @@ import (
 	"github.com/gascore/gas"
 )
 
+// RouteInfo info about current route
 type RouteInfo struct {
 	Name string
 	URL  string
@@ -21,9 +22,12 @@ type RouteInfo struct {
 	Ctx *Ctx
 }
 
+// Push push user to another route
 func (i RouteInfo) Push(path string, replace bool) {
 	i.Ctx.Push(path, replace)
 }
+
+// Push push user to another page
 func (ctx *Ctx) Push(path string, replace bool) {
 	if ctx.Settings.GetUserConfirmation != nil && ctx.Settings.GetUserConfirmation() {
 		return
@@ -31,12 +35,15 @@ func (ctx *Ctx) Push(path string, replace bool) {
 
 	ctx.ChangeRoute(path, replace)
 
-	dom.GetWindow().DispatchEvent(js.New("Event", changeRouteEvent))
+	dom.GetWindow().DispatchEvent(js.New("Event", ChangeRouteEvent))
 }
 
+// PushDynamic push user to another route with params and queries
 func (i RouteInfo) PushDynamic(name string, params, queries map[string]string, replace bool) {
 	i.Ctx.PushDynamic(name, params, queries, replace)
 }
+
+// PushDynamic push user to another route with params and queries
 func (ctx *Ctx) PushDynamic(name string, params, queries map[string]string, replace bool) {
 	ctx.Push(ctx.fillPath(name, params, queries), replace)
 }
@@ -49,7 +56,7 @@ func (ctx *Ctx) fillPath(name string, params, queries map[string]string) string 
 
 	path := route.Path
 
-	for x := 0; x < 64; x++ {
+	for x := 0; x < ctx.Settings.MaxRouteParams; x++ {
 		p1, name, p2 := splitPath(path)
 		if len(name) == 0 {
 			var queriesString string
@@ -107,9 +114,12 @@ func beforePush(push func(*gas.Component, gas.Object)) func(*gas.Component, gas.
 	}
 }
 
+// Link create link to route
 func (i RouteInfo) Link(to string, replace bool, e gas.External) *gas.Component {
 	return i.Ctx.Link(to, replace, e)
 }
+
+// Link create link to route
 func (ctx *Ctx) Link(to string, replace bool, e gas.External) *gas.Component {
 	return ctx.link(
 		func() string {
@@ -121,9 +131,12 @@ func (ctx *Ctx) Link(to string, replace bool, e gas.External) *gas.Component {
 		e)
 }
 
+// LinkWithParams create link to route with queries and params
 func (i RouteInfo) LinkWithParams(name string, params, queries map[string]string, replace bool, e gas.External) *gas.Component {
 	return i.Ctx.LinkWithParams(name, params, queries, replace, e)
 }
+
+//LinkWithParams create link to route with queries and params
 func (ctx *Ctx) LinkWithParams(name string, params, queries map[string]string, replace bool, e gas.External) *gas.Component {
 	return ctx.link(
 		func() string {

@@ -2,9 +2,14 @@ package store
 
 import (
 	"errors"
+	"fmt"
 	"github.com/gascore/gas"
 	"testing"
 )
+
+func TestEz(t *testing.T) {
+	fmt.Println("ez")	
+}
 
 func TestNew(t *testing.T) {
 	var (

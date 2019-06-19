@@ -6,4 +6,4 @@ std contains:
 2. store - data container
 3. cookie - bindings for the cookies API
 4. localStorage - bindings or the localStorage API
-5. components - collection of useful gas components 
+5. components - collection of useful gas components

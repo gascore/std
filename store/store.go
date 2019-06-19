@@ -34,9 +34,13 @@ type MiddleWare struct {
 	Hook   func(s *Store, values []interface{}) error
 }
 
-// Hooks - functions dispatching by gas-store in special moments
+// OnCreateHook called when store initializing 
 type OnCreateHook func(s *Store) error
+
+// BeforeEmitHook called before event was processed 
 type BeforeEmitHook func(store *Store, eventName string, values []interface{}) error
+
+// AfterEmitHook called after event was proccessed
 type AfterEmitHook func(store *Store, eventName string, updatesMap map[string]interface{}, values []interface{}) error
 
 // Handler - event handler with your stuff. Returns updatesData which will be appended to main store Data.

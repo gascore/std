@@ -12,11 +12,13 @@ import (
 	sjs "syscall/js"
 )
 
-const changeRouteEvent = "changeroute"
+// ChangeRouteEvent name for custom event
+const ChangeRouteEvent = "changeroute"
 
-// this is really bad, isn't it?
+// renderedPaths dummy cache for rendered paths 
 var renderedPaths = make(map[string]string)
 
+// Route information about route for router
 type Route struct {
 	Name      string
 	Component func(info RouteInfo) *gas.Component
@@ -31,12 +33,14 @@ type Route struct {
 	ArrPath []string
 }
 
+// Ctx router context
 type Ctx struct {
 	Routes   []Route
 	Settings Settings
 	This     *gas.Component
 }
 
+// Settings router settings
 type Settings struct {
 	BaseName string
 
@@ -48,8 +52,11 @@ type Settings struct {
 
 	Redirect *gas.Component
 	NotFound *gas.Component
+
+	MaxRouteParams int
 }
 
+// InitRouter init std/router
 func InitRouter(ctx *Ctx) *gas.Component {
 	if ctx.Settings.NotFound == nil {
 		ctx.Settings.NotFound = gas.NE(&gas.C{}, "404. Page not found")
@@ -61,6 +68,10 @@ func InitRouter(ctx *Ctx) *gas.Component {
 
 	if ctx.Settings.HashMode {
 		ctx.Settings.BaseName = "#" + ctx.Settings.HashSuffix + ctx.Settings.BaseName
+	}
+
+	if ctx.Settings.MaxRouteParams == 0 {
+		ctx.Settings.MaxRouteParams = 64
 	}
 
 	for _, route := range ctx.Routes {
@@ -92,7 +103,7 @@ func InitRouter(ctx *Ctx) *gas.Component {
 					})
 
 					windowAddEventListener("popstate", updateEvent)
-					windowAddEventListener(changeRouteEvent, updateEvent)
+					windowAddEventListener(ChangeRouteEvent, updateEvent)
 
 					this.SetValueImm("updateEvent", updateEvent)
 
@@ -102,7 +113,7 @@ func InitRouter(ctx *Ctx) *gas.Component {
 					updateEvent := this.Get("updateEvent").(js.Func)
 
 					windowRemoveEventListener("popstate", updateEvent)
-					windowRemoveEventListener(changeRouteEvent, updateEvent)
+					windowRemoveEventListener(ChangeRouteEvent, updateEvent)
 
 					return nil
 				},
@@ -134,9 +145,12 @@ func InitRouter(ctx *Ctx) *gas.Component {
 		})
 }
 
+// ChangeRoute change current route
 func (i RouteInfo) ChangeRoute(path string, replace bool) {
 	i.Ctx.ChangeRoute(path, replace)
 }
+
+// ChangeRoute change current route
 func (ctx *Ctx) ChangeRoute(path string, replace bool) {
 	path = ctx.Settings.BaseName + path
 
@@ -185,9 +199,12 @@ func (ctx *Ctx) ChangeRoute(path string, replace bool) {
 	}
 }
 
+// ChangeRouteDynamic change current route with params and queries
 func (i RouteInfo) ChangeRouteDynamic(name string, params, queries map[string]string, replace bool) {
 	i.Ctx.ChangeRouteDynamic(name, params, queries, replace)
 }
+
+// ChangeRouteDynamic change current route with params and queries
 func (ctx *Ctx) ChangeRouteDynamic(name string, params, queries map[string]string, replace bool) {
 	ctx.ChangeRoute(ctx.fillPath(name, params, queries), replace)
 }
@@ -243,9 +260,9 @@ func (ctx *Ctx) findRoute(currentPath string, this *gas.Component) *gas.Componen
 func (ctx Ctx) getPath() string {
 	if ctx.Settings.HashMode {
 		return dom.GetWindow().GetLocation().Get("hash").String()
-	} else {
-		return dom.GetWindow().GetLocationPath()
 	}
+	
+	return dom.GetWindow().GetLocationPath()
 }
 
 func matchPath(currentPath string, route Route, ctx *Ctx) (bool, map[string]string, map[string]string, error) {
@@ -336,6 +353,7 @@ func splitPath(path string) (string, string, string) {
 	return path[:index], path[index+1 : slashIndex], path[slashIndex:]
 }
 
+// SupportHistory return ture if browser support "HTML5 History API"
 func SupportHistory() bool {
 	return dom.GetWindow().GetHistory().Type().String() != "undefined" &&
 		dom.GetWindow().GetHistory().Get("pushState").Type().String() != "undefined" &&
