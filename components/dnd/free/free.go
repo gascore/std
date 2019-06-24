@@ -87,7 +87,7 @@ func DNDFree(config Config, e gas.External) *gas.C {
 				"class": config.Class + "-wrap",
 			},
 			Hooks: gas.Hooks{
-				Mounted: func(this *gas.C) error {
+				Mounted: func() error {
 					var _boundary *dom.Element
 					if config.Boundary != "" {
 						_boundary = dom.Doc.QuerySelector("." + config.Boundary)
@@ -252,7 +252,7 @@ func DNDFree(config Config, e gas.External) *gas.C {
 
 					return nil
 				},
-				BeforeDestroy: func(this *gas.C) error {
+				BeforeDestroy: func() error {
 					if _, ok := this.Get("moveEvent").(js.Func); !ok {
 						return errors.New("invalid component Data")
 					}

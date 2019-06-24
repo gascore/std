@@ -1,4 +1,4 @@
-<template>
+<template root="Tree">
     <div :class="fmt.Sprintf(`tree tree-%s`, cName)">
         <div :class="fmt.Sprintf(`tree-header tree-%s-header`, cName)">
             <b>

@@ -21,8 +21,8 @@ type Store struct {
 
 	subscribers []Sub
 
-	forRootParents    map[*gas.Component]bool
-	forNonRootParents map[*gas.Component]bool
+	forRootParents    map[*gas.Element]bool
+	forNonRootParents map[*gas.Element]bool
 }
 
 // MiddleWare let you do something before all events who have this (MiddleWare.Prefix) prefix.
@@ -68,8 +68,8 @@ func New(s *Store) (*Store, error) {
 		return nil, errors.New("store data is nil")
 	}
 
-	s.forRootParents = make(map[*gas.Component]bool)
-	s.forNonRootParents = make(map[*gas.Component]bool)
+	s.forRootParents = make(map[*gas.Element]bool)
+	s.forNonRootParents = make(map[*gas.Element]bool)
 
 	return s, nil
 }
@@ -92,9 +92,13 @@ func (s *Store) Get(query string) interface{} {
 
 // Emit runs event from Store handlers
 func (s *Store) Emit(query string, values ...interface{}) error {
-	handler := s.Handlers[query]
-	if handler == nil {
+	handler, ok := s.Handlers[query]
+	if !ok {
 		return fmt.Errorf("undefined event name: %s", query)
+	}
+
+	if handler == nil {
+		return fmt.Errorf("invalid handler for event: %s", query)
 	}
 
 	if s.BeforeEmit != nil {
@@ -171,13 +175,18 @@ func (s *Store) RegisterComponent(c *gas.Component, customUpdater func() bool) *
 	}
 
 	mounted := c.Hooks.Mounted
-	c.Hooks.Mounted = func(this *gas.Component) error {
-		if s.isRoot(sub.Component) {
+	c.Hooks.Mounted = func() error {
+		isRoot, err := s.isRoot(sub.Component)
+		if err != nil {
+			return err
+		}
+
+		if isRoot {
 			s.subscribers = append(s.subscribers, sub)
 		}
 
 		if mounted != nil {
-			err := mounted(this)
+			err := mounted()
 			if err != nil {
 				return err
 			}
@@ -187,7 +196,7 @@ func (s *Store) RegisterComponent(c *gas.Component, customUpdater func() bool) *
 	}
 
 	willDestroy := c.Hooks.BeforeDestroy
-	c.Hooks.BeforeDestroy = func(this *gas.Component) error {
+	c.Hooks.BeforeDestroy = func() error {
 		for i, c := range s.subscribers {
 			if sub.Component == c.Component {
 				// remove sub from subscribers
@@ -196,7 +205,7 @@ func (s *Store) RegisterComponent(c *gas.Component, customUpdater func() bool) *
 		}
 
 		if willDestroy != nil {
-			err := willDestroy(this)
+			err := willDestroy()
 			if err != nil {
 				return err
 			}
@@ -214,47 +223,43 @@ func (s *Store) RC(c *gas.Component, customUpdater func() bool) *gas.Component {
 }
 
 // isRoot check if component have no RegisteredComponents which will update him after store updates
-func (s *Store) isRoot(c *gas.Component) bool {
-	parent := findParent(c)
+func (s *Store) isRoot(c *gas.Component) (bool, error) {
+	if c.Element.Parent == nil { // it's root element
+		s.forRootParents[c.Element] = true
+		return true, nil
+	}
 
+	parent := c.Element.ParentComponent()
 	if parent == nil {
 		s.forRootParents[parent] = true
-		return true
+		return true, nil
 	}
 
 	if s.forRootParents[parent] {
-		return true
+		return true, nil
 	}
 	if s.forNonRootParents[parent] {
-		return false
+		return false, nil
 	}
 
-	var haveParentIsSubs bool
+	var haveParentInSubs bool
 	for _, sub := range s.subscribers {
-		if sub.Component == parent {
-			haveParentIsSubs = true
+		changed, err := gas.Changed(sub.Component, parent.Component)
+		if err != nil {
+			return false, err
+		}
+
+		if !changed {
+			haveParentInSubs = true
 		}
 	}
 
-	if haveParentIsSubs {
+	if haveParentInSubs {
 		s.forNonRootParents[parent] = true
-		return false
-	} else {
-		return s.isRoot(parent)
-	}
-}
-
-// findParent find component *true* parent which is not Element
-func findParent(c *gas.Component) *gas.Component {
-	if c.Parent == nil {
-		return c.Parent
+		return false, nil
 	}
 
-	if c.Parent.IsElement() {
-		return findParent(c.Parent)
-	}
-
-	return c.Parent
+	return s.isRoot(parent.Component)
 }
 
 // update run ForceUpdate for all subs
@@ -264,11 +269,11 @@ func (s *Store) update() error {
 			return nil
 		}
 
-		if sub.Component.GetElementUnsafely() == nil {
+		if sub.Component.Element.BEElement() == nil {
 			return errors.New("element undefined")
 		}
 
-		err := sub.Component.ForceUpdate()
+		err := sub.Component.UpdateWithError()
 		if err != nil {
 			return err
 		}

@@ -1,4 +1,4 @@
-<template>
+<template root="Modal">
     <div g-bind:class="config.ClassName" g-bind:style="mainStyles" g-if="config.IsActive">
         <div g-bind:class="config.ClassName+`-overlay`+classIsActive" g-bind:style="overlayStyles" g-on:click="disable(config)"></div>
         <div g-bind:class="config.ClassName+`-container`" g-bind:style="containerStyles">

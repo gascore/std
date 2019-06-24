@@ -70,7 +70,7 @@ func Lists(config Config, e gas.External) *gas.C {
 		item.Attrs["data-is-item"] = "true"
 		item.Attrs["data-dnd-index"] = fmt.Sprintf("%d", i)
 
-		item.Hooks.Mounted = func(this *gas.Component) error {
+		item.Hooks.Mounted = func() error {
 			_el := this.Element().(*dom.Element)
 
 			_el.AddEventListener("dragstart", func(e dom.Event) {
@@ -200,7 +200,7 @@ func Lists(config Config, e gas.External) *gas.C {
 		&gas.C{
 			Tag: config.Tag,
 			Hooks: gas.Hooks{
-				Mounted: func(this *gas.Component) error {
+				Mounted: func() error {
 					_el := this.Element().(*dom.Element)
 
 					_el.AddEventListener("drop", func(e dom.Event) {

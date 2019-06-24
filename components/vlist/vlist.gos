@@ -64,7 +64,7 @@ func List(config *Config, e gas.External) *gas.C {
 				"style": "height: 100%; width: 100%",
 			},
 			Hooks: gas.Hooks{
-				Mounted: func(this *gas.Component) error {
+				Mounted: func() error {
 					items := this.Method("calculateItems").([]interface{})
 
 					this.SetValue("items", items)

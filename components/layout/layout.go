@@ -192,7 +192,7 @@ func gutter(pThis *gas.C, config *Config, first, second Element) *gas.Component 
 			"style": fmt.Sprintf("cursor: %s; %s: %dpx", cursorType, config.orientation, config.GutterSize),
 		},
 		Hooks: gas.Hooks{
-			Mounted: func(this *gas.Component) error {
+			Mounted: func() error {
 				var parentSize int
 
 				_el := this.Element().(*dom.Element)
@@ -350,7 +350,7 @@ func gutter(pThis *gas.C, config *Config, first, second Element) *gas.Component 
 
 				return nil
 			},
-			BeforeDestroy: func(this *gas.C) error {
+			BeforeDestroy: func() error {
 				_el := this.Element().(*dom.Element)
 				if _el == nil {
 					return nil

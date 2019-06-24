@@ -1,6 +1,6 @@
 <script src="vlist.gos"></script>
 
-<template>
+<template root="vlist">
     <div class="vlist" @scroll="this.Method(`onScroll`, e)">
         <div
              class="vlist-padding"

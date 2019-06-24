@@ -9,7 +9,7 @@ import (
 	"github.com/gascore/gas"
 )
 
-// RouteInfo info about current route
+// RouteInfo info about current route for router
 type RouteInfo struct {
 	Name string
 	URL  string
@@ -74,7 +74,7 @@ func (ctx *Ctx) fillPath(name string, params, queries map[string]string) string 
 		path = fmt.Sprintf("%s%s%s", p1, params[name], p2)
 	}
 
-	ctx.This.WarnError(fmt.Errorf("invalid path"))
+	ctx.This.c.WarnError(fmt.Errorf("invalid path"))
 	return path
 }
 
@@ -85,21 +85,22 @@ func (ctx *Ctx) getRoute(name string) Route {
 		}
 	}
 
-	ctx.This.WarnError(fmt.Errorf("undefined route: %s", name))
+	ctx.This.c.WarnError(fmt.Errorf("undefined route: %s", name))
 	return Route{}
 }
 
-func (ctx Ctx) link(getPath func() string, push func(*gas.Component, gas.Object), e gas.External) *gas.Component {
+func (ctx Ctx) link(path string, push func(gas.Object), e gas.External) *gas.Element {
+	if e.Attrs == nil {
+		e.Attrs = make(map[string]string)
+	}
+	
+	e.Attrs["href"] = ctx.Settings.BaseName + path
+
 	return gas.NE(
-		&gas.Component{
+		&gas.E{
 			Tag: "a",
 			Attrs: e.Attrs,
-			Binds: map[string]gas.Bind{
-				"href": func() string {
-					return getPath()
-				},
-			},
-			Handlers: map[string]gas.Handler{
+			Handlers: map[string]gas.Handler {
 				"click":    beforePush(push),
 				"keyup.13": beforePush(push),
 				"keyup.32": beforePush(push),
@@ -107,42 +108,38 @@ func (ctx Ctx) link(getPath func() string, push func(*gas.Component, gas.Object)
 		},
 		e.Body...)
 }
-func beforePush(push func(*gas.Component, gas.Object)) func(*gas.Component, gas.Object) {
-	return func(this *gas.Component, event gas.Object) {
-		push(this, event)
+func beforePush(push func(gas.Object)) func(gas.Object) {
+	return func(event gas.Object) {
+		push(event)
 		event.Call("preventDefault")
 	}
 }
 
 // Link create link to route
-func (i RouteInfo) Link(to string, replace bool, e gas.External) *gas.Component {
+func (i RouteInfo) Link(to string, replace bool, e gas.External) *gas.Element {
 	return i.Ctx.Link(to, replace, e)
 }
 
 // Link create link to route
-func (ctx *Ctx) Link(to string, replace bool, e gas.External) *gas.Component {
+func (ctx *Ctx) Link(to string, replace bool, e gas.External) *gas.Element {
 	return ctx.link(
-		func() string {
-			return ctx.Settings.BaseName + to
-		},
-		func(this *gas.Component, e gas.Object) {
+		to,
+		func(e gas.Object) {
 			ctx.Push(to, replace)
 		},
 		e)
 }
 
 // LinkWithParams create link to route with queries and params
-func (i RouteInfo) LinkWithParams(name string, params, queries map[string]string, replace bool, e gas.External) *gas.Component {
+func (i RouteInfo) LinkWithParams(name string, params, queries map[string]string, replace bool, e gas.External) *gas.Element {
 	return i.Ctx.LinkWithParams(name, params, queries, replace, e)
 }
 
 //LinkWithParams create link to route with queries and params
-func (ctx *Ctx) LinkWithParams(name string, params, queries map[string]string, replace bool, e gas.External) *gas.Component {
+func (ctx *Ctx) LinkWithParams(name string, params, queries map[string]string, replace bool, e gas.External) *gas.Element {
 	return ctx.link(
-		func() string {
-			return ctx.Settings.BaseName + ctx.fillPath(name, params, queries)
-		},
-		func(this *gas.Component, e gas.Object) {
+		ctx.fillPath(name, params, queries),
+		func(e gas.Object) {
 			ctx.PushDynamic(name, params, queries, replace)
 		},
 		e)

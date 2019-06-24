@@ -18,10 +18,10 @@ const ChangeRouteEvent = "changeroute"
 // renderedPaths dummy cache for rendered paths 
 var renderedPaths = make(map[string]string)
 
-// Route information about route for router
+// Route information about route
 type Route struct {
 	Name      string
-	Component func(info RouteInfo) *gas.Component
+	Element   func(info RouteInfo) *gas.Element
 	Exact     bool
 	Sensitive bool
 
@@ -37,7 +37,7 @@ type Route struct {
 type Ctx struct {
 	Routes   []Route
 	Settings Settings
-	This     *gas.Component
+	This     *routerComponent
 }
 
 // Settings router settings
@@ -50,20 +50,20 @@ type Settings struct {
 	GetUserConfirmation func() bool
 	ForceRefresh        bool
 
-	Redirect *gas.Component
-	NotFound *gas.Component
+	Redirect *gas.Element
+	NotFound *gas.Element
 
 	MaxRouteParams int
 }
 
-// InitRouter init std/router
-func InitRouter(ctx *Ctx) *gas.Component {
+// Init initialize router ctx
+func (ctx *Ctx) Init() *Ctx {
 	if ctx.Settings.NotFound == nil {
-		ctx.Settings.NotFound = gas.NE(&gas.C{}, "404. Page not found")
+		ctx.Settings.NotFound = gas.NE(&gas.E{}, "404. Page not found")
 	}
 
 	if ctx.Settings.Redirect == nil {
-		ctx.Settings.Redirect = gas.NE(&gas.C{}, "Redirecting")
+		ctx.Settings.Redirect = gas.NE(&gas.E{}, "Redirecting")
 	}
 
 	if ctx.Settings.HashMode {
@@ -88,61 +88,74 @@ func InitRouter(ctx *Ctx) *gas.Component {
 		}
 	}
 
-	return gas.NC(
-		&gas.C{
-			Tag: "main",
-			Data: map[string]interface{}{
-				"lastItem":    &gas.Component{},
-				"lastRoute":   "",
-				"updateEvent": nil,
+	return ctx
+}
+
+// GetRouter return gas router element
+func (ctx *Ctx) GetRouter() *gas.Element {
+	root := &routerComponent{
+		ctx: ctx,
+	}
+
+	c := &gas.C{
+		Root: root,
+		Hooks: gas.Hooks{
+			Mounted: func() error {
+				root.updateEvent = event(func(e dom.Event) {
+					root.c.Update() 
+				})
+
+				windowAddEventListener("popstate", root.updateEvent)
+				windowAddEventListener(ChangeRouteEvent, root.updateEvent)
+
+				return nil
 			},
-			Hooks: gas.Hooks{
-				Mounted: func(this *gas.Component) error {
-					updateEvent := event(func(e dom.Event) {
-						this.WarnError(this.ForceUpdate())
-					})
+			BeforeDestroy: func() error {
+				windowRemoveEventListener("popstate", root.updateEvent)
+				windowRemoveEventListener(ChangeRouteEvent, root.updateEvent)
 
-					windowAddEventListener("popstate", updateEvent)
-					windowAddEventListener(ChangeRouteEvent, updateEvent)
-
-					this.SetValueImm("updateEvent", updateEvent)
-
-					return nil
-				},
-				BeforeDestroy: func(this *gas.Component) error {
-					updateEvent := this.Get("updateEvent").(js.Func)
-
-					windowRemoveEventListener("popstate", updateEvent)
-					windowRemoveEventListener(ChangeRouteEvent, updateEvent)
-
-					return nil
-				},
+				return nil
 			},
 		},
-		func(this *gas.Component) []interface{} {
-			if !strings.HasPrefix(ctx.getPath(), ctx.Settings.BaseName) {
-				ctx.ChangeRoute("/", true)
-			}
+	}
+	root.c = c
 
-			currentPath := strings.TrimPrefix(ctx.getPath(), ctx.Settings.BaseName)
-			if currentPath == "" {
-				currentPath = "/"
-			}
+	return c.Init()
+}
 
-			ctx.This = this
+type routerComponent struct {
+	c *gas.C
+	ctx *Ctx
 
-			return gas.ToGetComponentList(
-				gas.NE(
-					&gas.C{
-						Attrs: map[string]string{
-							"data-path": currentPath,
-							"id":        "gas-router_route-wraper",
-						},
-					},
-					ctx.findRoute(currentPath, this),
-				),
-			)
-		})
+	lastItem    *gas.Element
+	lastRoute   string
+	updateEvent js.Func
+}
+
+func(root *routerComponent) Render() []interface{} {
+	ctx := root.ctx
+	if !strings.HasPrefix(ctx.getPath(), ctx.Settings.BaseName) {
+		ctx.ChangeRoute("/", true)
+	}
+
+	currentPath := strings.TrimPrefix(ctx.getPath(), ctx.Settings.BaseName)
+	if currentPath == "" {
+		currentPath = "/"
+	}
+
+	ctx.This = root
+
+	return gas.CL(
+		gas.NE(
+			&gas.E{
+				Attrs: map[string]string{
+					"data-path": currentPath,
+					"id":        "gas-router_route-wraper",
+				},
+			},
+			ctx.findRoute(currentPath),
+		),
+	)
 }
 
 // ChangeRoute change current route
@@ -166,35 +179,34 @@ func (ctx *Ctx) ChangeRoute(path string, replace bool) {
 	} else {
 		dom.GetWindow().GetHistory().Call("pushState", "", "", path)
 
-		/*
-			Updating routeWrapper data-path without calling ForceUpdate/ReCreate
-		*/
+		c  := ctx.This.c
+		el := c.Element
 
-		this := ctx.This
-
-		_el, ok := this.Element().(*dom.Element)
+		_el, ok := el.BEElement().(*dom.Element)
 		if !ok || _el == nil {
-			this.ConsoleError("invalid ctx.This")
+			c.ConsoleError("invalid ctx.This")
 			return
 		}
 
-		if len(ctx.This.RChildes) == 0 {
-			this.ConsoleError("invalid ctx.This RChildes")
+		if len(el.RChildes) == 0 {
+			c.ConsoleError("invalid ctx.This RChildes")
 			return
 		}
 
-		routeWrap, ok := ctx.This.RChildes[0].(*gas.C)
+		routeWrap, ok := el.RChildes[0].(*gas.E)
 		if !ok {
-			this.ConsoleError("invalid gas-router route wrapper type")
+			c.ConsoleError("invalid gas-router route wrapper type")
 			return
 		}
+
 		routeWrap.Attrs["data-path"] = path
 
 		elChildes := _el.ChildNodes()
 		if len(elChildes) == 0 {
-			this.ConsoleError("invalid _el ChildNodes")
+			c.ConsoleError("invalid _el ChildNodes")
 			return
 		}
+
 		elChildes[0].SetAttribute("data-path", path)
 	}
 }
@@ -209,15 +221,18 @@ func (ctx *Ctx) ChangeRouteDynamic(name string, params, queries map[string]strin
 	ctx.ChangeRoute(ctx.fillPath(name, params, queries), replace)
 }
 
-func (ctx *Ctx) findRoute(currentPath string, this *gas.Component) *gas.Component {
-	if currentPath == this.Get("lastRoute").(string) {
-		return this.Get("lastItem").(*gas.Component)
+func (ctx *Ctx) findRoute(currentPath string) *gas.Element {
+	root := ctx.This
+	c    := root.c
+
+	if currentPath == root.lastRoute {
+		return root.lastItem
 	}
 
 	for _, route := range ctx.Routes {
-		routeIsFits, params, queries, err := matchPath(currentPath, route, ctx)
+		routeIsFits, params, queries, err := ctx.matchPath(currentPath, route)
 		if err != nil {
-			ctx.This.ConsoleError("error in router", err.Error())
+			c.ConsoleError("error in router: ", err.Error())
 			return nil
 		}
 
@@ -235,7 +250,7 @@ func (ctx *Ctx) findRoute(currentPath string, this *gas.Component) *gas.Componen
 			return ctx.Settings.Redirect
 		}
 
-		c := route.Component(
+		newEl := route.Element(
 			RouteInfo{
 				Name: route.Name,
 				URL:  currentPath,
@@ -246,18 +261,19 @@ func (ctx *Ctx) findRoute(currentPath string, this *gas.Component) *gas.Componen
 				Route: route,
 
 				Ctx: ctx,
-			})
+			},
+		)
 
-		ctx.This.WarnError(this.SetValueImm("lastRoute", currentPath))
-		ctx.This.WarnError(this.SetValueImm("lastItem", c))
+		root.lastRoute = currentPath
+		root.lastItem  = newEl
 
-		return c
+		return newEl
 	}
 
 	return ctx.Settings.NotFound
 }
 
-func (ctx Ctx) getPath() string {
+func (ctx *Ctx) getPath() string {
 	if ctx.Settings.HashMode {
 		return dom.GetWindow().GetLocation().Get("hash").String()
 	}
@@ -265,7 +281,7 @@ func (ctx Ctx) getPath() string {
 	return dom.GetWindow().GetLocationPath()
 }
 
-func matchPath(currentPath string, route Route, ctx *Ctx) (bool, map[string]string, map[string]string, error) {
+func (ctx *Ctx) matchPath(currentPath string, route Route) (bool, map[string]string, map[string]string, error) {
 	params, queries := make(map[string]string), make(map[string]string)
 	if route.Exact && currentPath == route.Path {
 		return true, params, queries, nil
@@ -312,7 +328,7 @@ func matchPath(currentPath string, route Route, ctx *Ctx) (bool, map[string]stri
 
 			splitQuery := strings.Split(query, "=")
 			if len(splitQuery) != 2 {
-				ctx.This.WarnError(fmt.Errorf("invalid query parametr: %s", query))
+				ctx.This.c.WarnError(fmt.Errorf("invalid query parametr: %s", query))
 				continue
 			}
 
@@ -335,7 +351,7 @@ func renderPath(a string, ctx *Ctx) string {
 		path = p1 + val + p2
 	}
 
-	ctx.This.ConsoleError(fmt.Sprintf("invalid path: %s", a))
+	ctx.This.c.ConsoleError(fmt.Sprintf("invalid path: %s", a))
 	return a
 }
 

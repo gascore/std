@@ -1,4 +1,4 @@
-<template>
+<template root="Item">
     <div>
         <div
             g-if="item.IsDirectory"
