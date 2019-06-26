@@ -1,10 +1,12 @@
 <template root="Modal">
-    <div g-bind:class="config.ClassName" g-bind:style="mainStyles" g-if="config.IsActive">
-        <div g-bind:class="config.ClassName+`-overlay`+classIsActive" g-bind:style="overlayStyles" g-on:click="disable(config)"></div>
-        <div g-bind:class="config.ClassName+`-container`" g-bind:style="containerStyles">
-            <e run="e.Body"></div>
-        </div>
-    </div>
+	<div>
+		<div class="modal-window" g-if="root.config.IsActive">
+			<div g-bind:class="`modal-window_overlay `+root.classIsActive" :style="root.overlayStyles" @click="root.disable()"></div>
+			<div class="modal-window_container" g-bind:style="root.containerStyles">
+				<e run="root.body"></div>
+			</div>
+		</div>
+	</div>
 </template>
 
 <script>
@@ -14,12 +16,11 @@ import (
 	"fmt"
 	"github.com/gascore/dom"
 	"github.com/gascore/gas"
-	"strings"
 )
 
 type Config struct {
 	IsActive bool
-	Closer func() error
+	Closer func()
 
 	MaxHeight string
 	MaxWidth string
@@ -28,22 +29,9 @@ type Config struct {
 	ClassName string
 
 	DisableEvents bool
-	// Draggable bool
 }
 
-func disable(config Config) error {
-    if config.DisableEvents {
-        return nil
-    }
-
-    return config.Closer()
-}
-
-func GetModal(config Config, e gas.External) *gas.C {
-	if len(e.Body) == 0 {
-		dom.ConsoleError("invalid modal body") // just warn
-	}
-
+func (config *Config) Normalize() {
 	if config.ClassName == "" {
 		config.ClassName = "modal"
 	}
@@ -59,67 +47,93 @@ func GetModal(config Config, e gas.External) *gas.C {
 	if config.MaxWidth == "" {
 		config.MaxWidth = "75vh"
 	}
-
-	var classIsActive string
-	if config.IsActive {
-		classIsActive = config.ClassName+"-active"
-	}
-
-	mainStyles := strings.Replace(`
-align-items: center;
-bottom: 0;
-justify-content: center;
-left: 0;
-opacity: 0;
-overflow: hidden;
-padding: .4rem;
-position: fixed;
-right: 0;
-top: 0;
-display: flex;
-opacity: 1;
-z-index: 400;`,"\n", " ", -1)
-
-	var cursor string
-	if !config.DisableEvents {
-		cursor = "pointer"
-	}
-
-	overlayStyles := strings.Replace(fmt.Sprintf(`background: %s;
-bottom: 0;
-cursor: %s;
-display: block;
-left: 0;
-position: absolute;
-right: 0;
-top: 0;`, config.Background, cursor), "\n", " ", -1)
-
-	containerStyles := strings.Replace(fmt.Sprintf(`background: #fff;
-border-radius: .1rem;
-box-shadow: 0 0.2rem 0.5rem rgba(48,55,66,.3);
-display: flex;
-flex-direction: column;
-max-height: %s;
-max-width: %s;
-width: 100%s;
-
-animatopn: slide-down .2s ease 1;
-z-index: 1;
-
-overflow: auto;`, config.MaxHeight, config.MaxWidth, "%"), "\n", " ", -1)
-
-	return gas.NC(
-		&gas.C{
-			Attrs: map[string]string{
-				"class": config.ClassName,
-				"style": mainStyles,
-			},
-            If: func(this *gas.Component) bool {
-                return config.IsActive
-            },
-		},
-		modalT,)
 }
 
-var modalT gas.GetComponentChildes
+type Modal struct {
+	c *gas.C
+	body []interface{}
+
+	config *Config
+
+	classIsActive string
+	overlayStyles string
+	containerStyles string
+}
+
+func (root *Modal) disable() {
+	if !root.config.DisableEvents {
+    	root.config.Closer()
+    }
+}
+
+func GetModal(config *Config, e gas.External) *gas.E {
+	if len(e.Body) == 0 {
+		dom.ConsoleError("invalid modal body") // just warn
+	}
+
+	config.Normalize()
+
+	var classIsActive, cursor string
+	if config.IsActive {
+		classIsActive = "modal-window_overlay-active"
+		cursor = "pointer"
+	} else {
+		cursor = "default"
+	}
+
+	root := &Modal {
+		body: e.Body,
+		config: config,
+
+		classIsActive: classIsActive,
+		overlayStyles: fmt.Sprintf("background: %s; cursor: %s;", config.Background, cursor),
+		containerStyles: fmt.Sprintf("max-height: %s; max-width: %s;", config.MaxHeight, config.MaxWidth),
+	}
+
+	c := &gas.C{Root: root}
+	root.c = c
+
+	return c.Init()
+}
 </script>
+
+<style>
+	.modal-window {
+		align-items: center;
+		bottom: 0;
+		justify-content: center;
+		left: 0;
+		opacity: 0;
+		overflow: hidden;
+		padding: .4rem;
+		position: fixed;
+		right: 0;
+		top: 0;
+		display: flex;
+		opacity: 1;
+		z-index: 400;
+
+		.modal-window_overlay {
+			bottom: 0;
+			display: block;
+			left: 0;
+			position: absolute;
+			right: 0;
+			top: 0;
+		}
+
+		.modal-window_container {
+			background: #fff;
+			border-radius: .1rem;
+			box-shadow: 0 0.2rem 0.5rem rgba(48,55,66,.3);
+			display: flex;
+			width: 100%;
+
+			animatopn: slide-down .2s ease 1;
+			z-index: 1;
+
+			overflow: auto;
+			flex-direction: column;
+		}
+	}
+</style>
