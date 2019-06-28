@@ -38,31 +38,7 @@ type Config struct {
 	positionEnd    string
 }
 
-type Event func(first, second Element, _gutter *dom.Element) (stopIt bool, err error)
-type MoveEvent func(first, second Element, _gutter *dom.Element, offset float64) (stopIt bool, err error)
-
-// Size layout item size info
-type Size struct {
-	Min     float64
-	Max     float64
-	Start   float64
-	current float64
-}
-
-type Element struct {
-	C     *gas.Component
-	Index int
-}
-
-// Layout return resizable layout
-func Layout(config *Config, e gas.External) *gas.Component {
-	e.Body = gas.RemoveStrings(e.Body)
-
-	if len(e.Body) != len(config.Sizes) {
-		dom.ConsoleError("not enough Element sizes")
-		return nil
-	}
-
+func (config *Config) normalize() {
 	if config.DragInterval == 0 {
 		config.DragInterval = 1
 	}
@@ -94,6 +70,76 @@ func Layout(config *Config, e gas.External) *gas.Component {
 	if config.GutterClass == "" {
 		config.GutterClass = "gutter"
 	}
+}
+
+type Event func(first, second Element, _gutter *dom.Element) (stopIt bool, err error)
+type MoveEvent func(first, second Element, _gutter *dom.Element, offset float64) (stopIt bool, err error)
+
+// Size layout item size info
+type Size struct {
+	Min     float64
+	Max     float64
+	Start   float64
+	current float64
+}
+
+type Element struct {
+	E     *gas.E
+	Index int
+}
+
+type layoutEl struct {
+	c *gas.C
+
+	elements []Element
+
+	sizes []Size
+	config *Config
+}
+
+func (root *layoutEl) Render() []interface{} {
+	var childes []interface{}
+
+	config := root.config
+
+	for i, child := range root.elements {
+		childes = append(childes, gas.NE(
+			&gas.E{
+				Attrs: map[string]string{
+					"class":  config.LayoutClass + "-item",
+					"style":  fmt.Sprintf("%s: calc(%f%s - %fpx); %s: 100%s;", config.orientation, root.sizes[child.Index].current, "%", config.byGuttersOffset, config.subOrientation, "%"),
+					"data-i": fmt.Sprintf("%d", i),
+				},
+			},
+			child.E,
+		))
+		if i != len(root.elements)-1 {
+			childes = append(childes, gutter(root, config, child, root.elements[i+1]))
+		}
+	}
+
+	return childes
+}
+
+func (root *layoutEl) GetSizes() []Size {
+	return root.sizes
+}
+
+func (root *layoutEl) SetSizes(newSizes []Size) {
+	root.sizes = newSizes
+	go root.c.Update()
+}
+
+// Layout return resizable layout
+func Layout(config *Config, e gas.External) *gas.Element {
+	e.Body = gas.RemoveStrings(e.Body)
+
+	if len(e.Body) != len(config.Sizes) {
+		dom.ConsoleError("not enough Element sizes")
+		return nil
+	}
+
+	config.normalize()
 
 	var sizesSum float64 // check sizes sum == 100 && make Size.Start valid
 	for _, size := range config.Sizes {
@@ -114,63 +160,60 @@ func Layout(config *Config, e gas.External) *gas.Component {
 	var elements []Element
 	var sizes []Size
 	for i, child := range e.Body {
-		if !gas.IsComponent(child) {
-			dom.ConsoleError(fmt.Sprintf("invalid child in layout - child is not component, want: '*gas.Component' got: '%T'", child))
+		childE, ok := child.(*gas.E)
+		if !ok {
+			dom.ConsoleError(fmt.Sprintf("invalid child in layout - child is not element: '%T'", child))
 			return nil
 		}
 
-		childC := gas.I2C(child)
-
-		if childC.Attrs == nil {
-			childC.Attrs = make(map[string]string)
+		if childE.Attrs == nil {
+			childE.Attrs = make(map[string]string)
 		}
 
 		size := config.Sizes[i]
 		size.current = size.Start
 
 		sizes = append(sizes, size)
-		elements = append(elements, Element{C: childC, Index: i})
+		elements = append(elements, Element{E: childE, Index: i})
 	}
 
 	config.allGuttersSize = (len(elements) - 1) * config.GutterSize
 	config.byGuttersOffset = float64(config.allGuttersSize) / float64(len(elements))
 
-	return gas.NC(
-		&gas.C{
-			Data: map[string]interface{}{
-				"sizes": sizes,
-			},
+	root := &layoutEl {
+		sizes: sizes,
+		config: config,
+		elements: elements,
+	}
+
+	c := &gas.C {
+		Root: root,
+		Element: &gas.E{
 			Attrs: map[string]string{
 				"class": fmt.Sprintf("%s %s-%s", config.LayoutClass, config.LayoutClass, config.typeString),
 			},
 		},
-		func(this *gas.Component) []interface{} {
-			var childes []interface{}
+	}
+	root.c = c
 
-			aSizes := this.Get("sizes").([]Size)
-
-			for i, child := range elements {
-				childes = append(childes, gas.NE(
-					&gas.C{
-						Attrs: map[string]string{
-							"class":  config.LayoutClass + "-item",
-							"style":  fmt.Sprintf("%s: calc(%f%s - %fpx); %s: 100%s;", config.orientation, aSizes[child.Index].current, "%", config.byGuttersOffset, config.subOrientation, "%"),
-							"data-i": fmt.Sprintf("%d", i),
-						},
-					},
-					child.C,
-				))
-				if i != len(elements)-1 {
-					childes = append(childes, gutter(this, config, child, elements[i+1]))
-				}
-			}
-
-			return childes
-		},
-	)
+	return c.Init()
 }
 
-func gutter(pThis *gas.C, config *Config, first, second Element) *gas.Component {
+type sizesFubInterface interface{
+	GetSizes()[]Size
+	SetSizes([]Size)
+}
+
+type gutterEl struct {
+	c *gas.C
+
+	dragOffset float64
+	dragging   bool
+
+	startEvent, moveEvent, stopEvent js.Func
+}
+
+func gutter(sizesFub sizesFubInterface, config *Config, first, second Element) *gas.Element {
 	var cursorType string
 	if config.Type {
 		cursorType = "ew-resize"
@@ -178,38 +221,43 @@ func gutter(pThis *gas.C, config *Config, first, second Element) *gas.Component 
 		cursorType = "row-resize"
 	}
 
-	return gas.NE(&gas.C{
-		Data: map[string]interface{}{
-			"dragOffset": float64(0),
-			"dragging":   false,
+	root := &gutterEl{
+	}
 
-			"startEvent": js.Func{},
-			"moveEvent":  js.Func{},
-			"stopEvent":  js.Func{},
-		},
-		Attrs: map[string]string{
-			"class": fmt.Sprintf("%s %s-%s", config.GutterClass, config.GutterClass, config.typeString),
-			"style": fmt.Sprintf("cursor: %s; %s: %dpx", cursorType, config.orientation, config.GutterSize),
+	c := &gas.C{
+		Root: root,
+		Element: &gas.E{
+			Tag: "div",
+			Attrs: map[string]string {
+				"class": fmt.Sprintf("%s %s-%s", config.GutterClass, config.GutterClass, config.typeString),
+				"style": fmt.Sprintf("cursor: %s; %s: %dpx", cursorType, config.orientation, config.GutterSize),
+			},
 		},
 		Hooks: gas.Hooks{
 			Mounted: func() error {
-				var parentSize int
+				_el := root.c.Element.BEElement().(*dom.Element)
 
-				_el := this.Element().(*dom.Element)
 				computedStyles := sjs.Global().Call("getComputedStyle", _el.JSValue())
-
+				var parentSize string
 				if config.Type {
-					parentSize = _el.ParentElement().ClientHeight() - parseP(computedStyles.Get("paddingTop")) - parseP(computedStyles.Get("paddingBottom"))
+					parentSize = fmt.Sprintf("%dpx", _el.ParentElement().ClientHeight() - parseP(computedStyles.Get("paddingTop")) - parseP(computedStyles.Get("paddingBottom")))
 				} else {
-					parentSize = _el.ParentElement().ClientWidth() - parseP(computedStyles.Get("paddingLeft")) - parseP(computedStyles.Get("paddingRight"))
+					parentSize = "100%"
 				}
+				_el.Style().Set(config.subOrientation, parentSize)
 
 				moveEvent := event(func(event dom.Event) error {
-					if !this.Get("dragging").(bool) {
+					if !root.dragging {
 						return nil
 					}
 
 					event.PreventDefault()
+
+					/*_el = event.Target()
+					if _el.ParentElement() == nil {
+						dom.ConsoleLog(_el.JSValue())
+						log.Fatal("WTF?!?!??!?!")
+					}*/
 
 					var start float64
 					if config.Type {
@@ -223,20 +271,6 @@ func gutter(pThis *gas.C, config *Config, first, second Element) *gas.Component 
 						return nil
 					}
 
-					sizes := pThis.Get("sizes").([]Size)
-
-					var newFirst, newSecond float64
-					if offset < 0 {
-						newFirst, newSecond = getSizes(-offset, _el.ParentElement(), sizes[first.Index], sizes[second.Index], config)
-					} else {
-						newSecond, newFirst = getSizes(offset, _el.ParentElement(), sizes[second.Index], sizes[first.Index], config)
-					}
-
-					sizes[first.Index].current = newFirst
-					sizes[second.Index].current = newSecond
-
-					pThis.SetValue("sizes", sizes)
-
 					if config.OnMove != nil {
 						stopIt, err := config.OnMove(first, second, _el, offset)
 						if err != nil {
@@ -248,16 +282,30 @@ func gutter(pThis *gas.C, config *Config, first, second Element) *gas.Component 
 						}
 					}
 
+					sizes := sizesFub.GetSizes()
+					var newFirst, newSecond float64
+					if offset < 0 {
+						newFirst, newSecond = getSizes(-offset, _el.ParentElement(), sizes[first.Index], sizes[second.Index], config)
+					} else {
+						newSecond, newFirst = getSizes(offset, _el.ParentElement(), sizes[second.Index], sizes[first.Index], config)
+					}
+
+					sizes[first.Index].current = newFirst
+					sizes[second.Index].current = newSecond
+
+					sizesFub.SetSizes(sizes)
+
 					return nil
 				})
 
 				stopEvent := event(func(event dom.Event) error {
-					if !this.Get("dragging").(bool) {
+					if !root.dragging {
 						return nil
 					}
 
-					_first := first.C.Element().(*dom.Element)
-					_second := second.C.Element().(*dom.Element)
+					_el = root.c.Element.BEElement().(*dom.Element)
+					_first := first.E.BEElement().(*dom.Element)
+					_second := second.E.BEElement().(*dom.Element)
 
 					if config.OnStop != nil {
 						stopIt, err := config.OnStop(first, second, _el)
@@ -270,11 +318,12 @@ func gutter(pThis *gas.C, config *Config, first, second Element) *gas.Component 
 						}
 					}
 
-					removeEvent(_el, "touchend", this.Get("stopEvent").(js.Func))
-					removeEvent(_el, "touchcancel", this.Get("stopEvent").(js.Func))
-					removeEvent(_el, "touchmove", this.Get("moveEvent").(js.Func))
-					removeEvent(dom.Doc, "mouseup", this.Get("stopEvent").(js.Func))
-					removeEvent(dom.Doc, "mousemove", this.Get("moveEvent").(js.Func))
+					removeEvent(_el, "touchend", root.stopEvent)
+					removeEvent(_el, "touchcancel", root.stopEvent)
+					removeEvent(_el, "touchmove", root.moveEvent)
+
+					removeEvent(dom.Doc, "mouseup", root.stopEvent)
+					removeEvent(dom.Doc, "mousemove", root.moveEvent)
 
 					for _, _x := range []*dom.Element{_first, _second} {
 						_x.Style().Set("userSelect", "")
@@ -282,21 +331,19 @@ func gutter(pThis *gas.C, config *Config, first, second Element) *gas.Component 
 						_x.Style().Set("MozUserSelect", "")
 					}
 
-					this.Set(map[string]interface{}{
-						"dragging": false,
-					})
+					root.dragging = false
 
 					return nil
 				})
 
 				startEvent := event(func(event dom.Event) error {
-					if this.Get("dragging").(bool) {
+					if root.dragging {
 						return nil
 					}
 
 					_el := event.Target()
-					_first := first.C.Element().(*dom.Element)
-					_second := second.C.Element().(*dom.Element)
+					_first := first.E.BEElement().(*dom.Element)
+					_second := second.E.BEElement().(*dom.Element)
 
 					if config.OnStart != nil {
 						stopIt, err := config.OnStart(first, second, _el)
@@ -309,11 +356,12 @@ func gutter(pThis *gas.C, config *Config, first, second Element) *gas.Component 
 						}
 					}
 
-					addEvent(_el, "touchend", this.Get("stopEvent").(js.Func))
-					addEvent(_el, "touchcancel", this.Get("stopEvent").(js.Func))
-					addEvent(_el, "touchmove", this.Get("moveEvent").(js.Func))
-					addEvent(dom.Doc, "mouseup", this.Get("stopEvent").(js.Func))
-					addEvent(dom.Doc, "mousemove", this.Get("moveEvent").(js.Func))
+					addEvent(_el, "touchend", root.stopEvent)
+					addEvent(_el, "touchcancel", root.stopEvent)
+					addEvent(_el, "touchmove", root.moveEvent)
+
+					addEvent(dom.Doc, "mouseup", root.stopEvent)
+					addEvent(dom.Doc, "mousemove", root.moveEvent)
 
 					for _, _x := range []*dom.Element{_first, _second} {
 						_x.Style().Set("userSelect", "none")
@@ -323,64 +371,48 @@ func gutter(pThis *gas.C, config *Config, first, second Element) *gas.Component 
 
 					_el.ClassList().Add(config.GutterClass + "-focus")
 
-					this.Set(map[string]interface{}{
-						"dragOffset": getMousePosition(config.clientAxis, event) - _first.GetBoundingClientRectRaw().Get(config.positionEnd).Float(),
-						"dragging":   true,
-					})
+					root.dragOffset = getMousePosition(config.clientAxis, event) - _first.GetBoundingClientRectRaw().Get(config.positionEnd).Float()
+					root.dragging = true
 
 					return nil
 				})
 
-				_el.Style().Set(config.subOrientation, fmt.Sprintf("%dpx", parentSize))
-
 				addEvent(_el, "mousedown", startEvent)
 				addEvent(_el, "touchstart", startEvent)
-				addEvent(_el, "touchend", stopEvent)
-				addEvent(_el, "touchcancel", stopEvent)
-				addEvent(_el, "touchmove", moveEvent)
 
 				addEvent(_el, "mouseup", stopEvent)
-				addEvent(_el, "mousemove", moveEvent)
+				addEvent(_el, "touchend", stopEvent)
+				addEvent(_el, "touchcancel", stopEvent)
 
-				this.SetImm(map[string]interface{}{
-					"startEvent": startEvent,
-					"moveEvent":  moveEvent,
-					"stopEvent":  stopEvent,
-				})
+				addEvent(_el, "mousemove", moveEvent)
+				addEvent(_el, "touchmove", moveEvent)
+
+				root.moveEvent  = moveEvent
+				root.startEvent = startEvent
+				root.stopEvent  = stopEvent
 
 				return nil
 			},
 			BeforeDestroy: func() error {
-				_el := this.Element().(*dom.Element)
+				_el := root.c.Element.BEElement().(*dom.Element)
 				if _el == nil {
 					return nil
 				}
 
-				removeEvent(_el, "mousedown", this.Get("startEvent").(js.Func))
-				removeEvent(_el, "touchstart", this.Get("startEvent").(js.Func))
+				removeEvent(_el, "mousedown", root.startEvent)
+				removeEvent(_el, "touchstart", root.startEvent)
 
 				return nil
 			},
 		},
-	})
+	}
+	root.c = c
+
+	return c.Init()
 }
 
-func event(f func(event dom.Event) error) js.Func {
-	return js.NewEventCallback(func(v js.Value) {
-		err := f(dom.ConvertEvent(v))
-		if err != nil {
-			dom.ConsoleError(err.Error())
-			return
-		}
-	})
-}
-
-func addEvent(e dom.Node, typ string, h js.Func) {
-	e.JSValue().Call("addEventListener", typ, h)
-}
-
-func removeEvent(e dom.Node, typ string, h js.Func) {
-	e.JSValue().Call("removeEventListener", typ, h)
+func (root *gutterEl) Render() []interface{} {
+	return gas.CL()
 }
 
 func getSizes(offset float64, _parent *dom.Element, first, second Size, config *Config) (float64, float64) {
@@ -415,6 +447,24 @@ func getMousePosition(clientAxis string, event dom.Event) float64 {
 	}
 
 	return event.JSValue().Get(clientAxis).Float()
+}
+
+func event(f func(event dom.Event) error) js.Func {
+	return js.NewEventCallback(func(v js.Value) {
+		err := f(dom.ConvertEvent(v))
+		if err != nil {
+			dom.ConsoleError(err.Error())
+			return
+		}
+	})
+}
+
+func addEvent(e dom.Node, typ string, h js.Func) {
+	e.JSValue().Call("addEventListener", typ, h)
+}
+
+func removeEvent(e dom.Node, typ string, h js.Func) {
+	e.JSValue().Call("removeEventListener", typ, h)
 }
 
 func notJsNull(e sjs.Value) bool {

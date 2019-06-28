@@ -1,126 +1,133 @@
-<template root="Tree">
-    <div :class="fmt.Sprintf(`tree tree-%s`, cName)">
-        <div :class="fmt.Sprintf(`tree-header tree-%s-header`, cName)">
-            <b>
-                {{ c.Name }}
-            </b>
-            <button
-                :class="fmt.Sprintf(`tree-hide-btn tree-%s-hide-btn`, cName)"
-                @click="this.SetValue(`isHidden`, !this.Get(`isHidden`).(bool))"
-                g-if="c.CanBeHidden">
-                <span g-if="this.Get(`isHidden`).(bool)">
-                    Show
-                </span>
-                <span g-else>
-                    Hide
-                </span>
-            </button>
-        </div>
-        <ul :class="fmt.Sprintf(`tree-items tree-%s-items`, cName)" g-show="!this.Get(`isHidden`).(bool)">
-            <li g-for="nItem in @toIA(c.Items)">
-                <e run="renderItem(nItem.(Item), c)"></e>
-            </li>
-        </ul>
-    </div>
+<template root="treeEl">
+  <div>
+      <div class="tree">
+          <div class="tree-header">
+              <b>
+                  {{ root.config.Name }}
+              </b>
+              <button class="tree-hide-btn" @click="root.toggleIsHidden()" g-if="root.config.CanBeHidden">
+                  <span g-if="root.isHidden">
+                      Show
+                  </span>
+                  <span g-else>
+                      Hide
+                  </span>
+              </button>
+          </div>
+          <ul class="tree-items" g-if="!root.isHidden">
+              <li g-for="_, nItem := range root.config.Items">
+                  <e run="renderItem(nItem, root.config)"></e>
+              </li>
+          </ul>
+      </div>
+  </div>
 </template>
 
 <script>
 package tree
 
 import (
-	"fmt"
 	"github.com/gascore/dom"
 	"github.com/gascore/gas"
-	"strings"
 )
 
 type Config struct {
-	Name 		string
+	Name 		    string
 	CanBeHidden bool
-	Events 	    Events
+	Items       []*Item
 
-	Items       []Item
-}
+  OnItemClick func(item *Item) error
 
-type Events struct {
-	ItemClick func(item Item) error
+  ArrowUp   string
+  ArrowDown string
 }
 
 type Item struct {
-	IsDirectory       bool
-	Childes           []Item // if is directory
+	IsDirectory bool
+	Childes     []*Item // if is directory
 
-	Name string
-	Renderer func(Item) *gas.C // if null render item name
+	Name     string
+	Renderer func(*Item) *gas.E // if null render item name
 
-	Data interface{}
+	Data interface{} // Your custom data
 }
 
-func toIA(items []Item) []interface{} {
-    var a []interface{}
-    for _, el := range items {
-        a = append(a, el)
-    }
-    return a
+type treeEl struct {
+  c *gas.C
+
+  isHidden bool
+  config *Config
 }
 
-func GetTree(c Config) *gas.Component {
-	if c.Items == nil {
+func (root *treeEl) toggleIsHidden() {
+  if !root.config.CanBeHidden {
+    return
+  }
+
+  root.isHidden = !root.isHidden
+  root.c.Update()
+}
+
+func GetTree(config *Config) *gas.Element {
+	if config.Items == nil {
 		dom.ConsoleError("invalid items")
 		return nil
 	}
 
-	cName := strings.Replace(c.Name, " ", "_", -1)
+  if len(config.ArrowUp) == 0 {
+    config.ArrowUp = `<i class="icon-arrow-up icon"></i>`
+  }
 
-	return gas.NC(
-		&gas.C{
-			Data: map[string]interface{}{
-				"isHidden": false,
-			},
-		},
-		treeT,)
+  if len(config.ArrowDown) == 0 {
+    config.ArrowDown = `<i class="icon-arrow-down icon"></i>`
+  }
+
+  root := &treeEl{
+    config: config,
+  }
+
+  c := &gas.C {Root: root}
+  root.c = c
+
+  return c.Init()
 }
-
-var treeT gas.GetComponentChildes
 </script>
 
 <style>
-.tree-header {
-  display: flex;
+.tree {
+  .tree-header {
+    display: flex;
 
-  .tree-hide-btn {
-    margin: 0  0 0 auto;
+    .tree-hide-btn {
+      margin: 0  0 0 auto;
 
-    border: 0;
-    padding: 0;
-    background: inherit;
-  }
-}
-
-ul.tree-items, .directory-item ul {
-  padding: 0 0 0 12px;
-  margin: 0;
-  list-style-type: none;
-}
-
-.tree-items {
-  span.tree-item {
-    cursor: pointer;
+      border: 0;
+      padding: 0;
+      background: inherit;
+    }
   }
 
-  .directory-item {
-    .directory-item-header {
-      button.directory-item-header__hide-btn {
-        margin: 0 6px 0 0;
-        border: 0;
-        padding: 0;
-        background: inherit;
-        display: inline-block;
-      }
+  ul.tree-items, .tree-directory-item ul {
+    padding: 0 0 0 12px;
+    margin: 0;
+    list-style-type: none;
+  }
 
-      .directory-item-header__name {
-        cursor: pointer;
-        display: inline-block;
+  .tree-items {
+    .tree-item {
+      .tree-item-header {
+        .tree-item-header__hide-btn {
+          margin: 0 6px 0 0;
+          border: 0;
+          padding: 0;
+          background: inherit;
+          display: inline-block;
+        }
+
+        .tree-item-header__name {
+          cursor: pointer;
+          display: inline-block;
+        }
       }
     }
   }
