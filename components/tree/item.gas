@@ -1,31 +1,29 @@
 <template root="itemEl">
-    <div>
-        <div g-if="root.item.IsDirectory" class="tree-item tree-directory-item">
-            <div class="tree-item-header" @click="root.onClick()">
-                <button class="tree-item-header__hide-btn">
-                    <span g-if="root.isHidden" g-html="root.config.ArrowUp"></span>
-                    <span g-else g-html="root.config.ArrowDown"></span>
-                </button>
-                <div g-if="root.item.Renderer == nil" class="tree-item-header__name">
-                    {{ root.item.Name }}
-                </div>
-                <div g-else class="tree-item-header__byRenderer">
-                    <e run="root.item.Renderer(root.item)"></e>
-                </div>
-            </div>
-            <ul g-if="!root.isHidden">
-                <li g-for="_, nItem := range root.item.Childes">
-                    <e run="renderItem(nItem, root.config)"></e>
-                </li>
-            </ul>
-        </div>
-        <div g-else class="tree-item" @click="root.onClick()">
-            <span g-if="root.item.Renderer == nil" class="tree-item_name">
+    <div g-if="root.item.IsDirectory" class="tree-item tree-directory-item">
+        <div class="tree-item-header" @click="root.onClick()">
+            <button class="tree-item-header__hide-btn">
+                <span g-if="root.isHidden" g-html="root.config.ArrowUp"></span>
+                <span g-else g-html="root.config.ArrowDown"></span>
+            </button>
+            <div g-if="root.item.Renderer == nil" class="tree-item-header__name">
                 {{ root.item.Name }}
-            </span>
-            <div g-else class="tree-item_byRenderer">
+            </div>
+            <div g-else class="tree-item-header__byRenderer">
                 <e run="root.item.Renderer(root.item)"></e>
             </div>
+        </div>
+        <ul g-if="!root.isHidden">
+            <li g-for="_, nItem := range root.item.Childes">
+                <e run="renderItem(nItem, root.config)"></e>
+            </li>
+        </ul>
+    </div>
+    <div g-else class="tree-item" @click="root.onClick()">
+        <span g-if="root.item.Renderer == nil" class="tree-item_name">
+            {{ root.item.Name }}
+        </span>
+        <div g-else class="tree-item_byRenderer">
+            <e run="root.item.Renderer(root.item)"></e>
         </div>
     </div>
 </template>

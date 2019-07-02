@@ -1,7 +1,6 @@
 package dndfree
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/frankenbeanies/uuid4"
@@ -33,19 +32,13 @@ type Config struct {
 	OnEnd   func(event gas.Object, x, y int) (reset bool, err error)
 }
 
-// DNDFree free draggable component
-func DNDFree(config Config, e gas.External) *gas.C {
+func (config *Config) normalize() {
 	if config.Tag == "" {
 		config.Tag = "div"
 	}
 
 	if config.Class == "" {
 		config.Class = "dnd-free"
-	}
-
-	if config.XDisabled && config.YDisabled {
-		dom.ConsoleError("x and y are disabled: element is static")
-		return nil
 	}
 
 	if config.XDisabled {
@@ -59,246 +52,280 @@ func DNDFree(config Config, e gas.External) *gas.C {
 	} else {
 		config.ifYDisabled = 1
 	}
+}
+
+// DNDFree free draggable component
+func DNDFree(config *Config, e gas.External) *gas.E {
+	config.normalize()
+
+	if config.XDisabled && config.YDisabled {
+		dom.ConsoleError("x and y are disabled: element is static")
+		return nil
+	}
 
 	childUUID := uuid4.New().String()
 
-	return gas.NC(
-		&gas.C{
+	root := &dndEl{
+		e:         e,
+		config:    config,
+		childUUID: childUUID,
+	}
+
+	c := &gas.C{
+		Root: root,
+		Element: &gas.E{
 			Tag: config.Tag,
-			Data: map[string]interface{}{
-				"initialX": 0,
-				"initialY": 0,
-
-				"offsetX": 0,
-				"offsetY": 0,
-
-				"cursorOffsetLeft":   0,
-				"cursorOffsetTop":    0,
-				"cursorOffsetRight":  0,
-				"cursorOffsetBottom": 0,
-
-				"isActive": false,
-
-				"startEvent": nil,
-				"endEvent":   nil,
-				"moveEvent":  nil,
-			},
 			Attrs: map[string]string{
 				"class": config.Class + "-wrap",
 			},
-			Hooks: gas.Hooks{
-				Mounted: func() error {
-					var _boundary *dom.Element
-					if config.Boundary != "" {
-						_boundary = dom.Doc.QuerySelector("." + config.Boundary)
-						if _boundary == nil {
-							dom.ConsoleError("boundary is undefined")
+		},
+		Hooks: gas.Hooks{
+			Mounted: func() error {
+				var _boundary *dom.Element
+				if config.Boundary != "" {
+					_boundary = dom.Doc.QuerySelector("." + config.Boundary)
+					if _boundary == nil {
+						dom.ConsoleError("boundary is undefined")
+					}
+				}
+
+				moveEvent := event(func(event dom.Event) {
+					if !root.isActive {
+						return
+					}
+
+					event.PreventDefault()
+
+					var x, y int
+					if event.Type() == "touchmove" {
+						t := event.JSValue().Get("touches").Get("0")
+						x = t.Get("clientX").Int()
+						y = t.Get("clientY").Int()
+					} else {
+						x = event.JSValue().Get("clientX").Int()
+						y = event.JSValue().Get("clientY").Int()
+					}
+
+					if _boundary != nil {
+						rect := _boundary.JSValue().Call("getBoundingClientRect")
+
+						var (
+							left   = rect.Get("left").Int()
+							top    = rect.Get("top").Int()
+							bottom = rect.Get("bottom").Int()
+							right  = rect.Get("right").Int()
+
+							cursorOffsetLeft   = root.cursorOffsetLeft
+							cursorOffsetTop    = root.cursorOffsetTop
+							cursorOffsetRight  = root.cursorOffsetRight
+							cursorOffsetBottom = root.cursorOffsetBottom
+						)
+
+						if (x - cursorOffsetLeft) <= left {
+							x = left + cursorOffsetLeft
+						} else if (x + cursorOffsetRight) >= right {
+							x = right - cursorOffsetRight
+						}
+
+						if (y - cursorOffsetTop) <= top {
+							y = top + cursorOffsetTop
+						} else if (y + cursorOffsetBottom) >= bottom {
+							y = bottom - cursorOffsetBottom
 						}
 					}
 
-					moveEvent := event(func(event dom.Event) {
-						if !this.Get("isActive").(bool) {
+					x = (x - root.initialX) * config.ifXDisabled
+					y = (y - root.initialY) * config.ifYDisabled
+
+					root.offsetX = x
+					root.offsetY = y
+
+					go root.c.Update()
+
+					if config.OnMove != nil {
+						err := config.OnMove(web.ToUniteObject(event), x, y)
+						if err != nil {
+							root.c.ConsoleError(err.Error())
+						}
+					}
+				})
+
+				startEvent := event(func(event dom.Event) {
+					if config.Handle == "" {
+						_target := event.Target()
+						if _target.GetAttribute("data-i").String() != root.childUUID && !root.c.Element.BEElement().(*dom.Element).Contains(_target) {
+							return
+						}
+					} else if !event.Target().ClassList().Contains(config.Handle) {
+						return
+					}
+
+					var clientX, clientY int
+					if event.Type() == "touchstart" {
+						t := event.JSValue().Get("touches").Get("0")
+						clientX = t.Get("clientX").Int()
+						clientY = t.Get("clientY").Int()
+					} else {
+						clientX = event.JSValue().Get("clientX").Int()
+						clientY = event.JSValue().Get("clientY").Int()
+					}
+
+					x := clientX - root.offsetX
+					y := clientY - root.offsetY
+
+					if config.OnStart != nil {
+						block, err := config.OnStart(web.ToUniteObject(event), x, y)
+						if err != nil {
+							root.c.WarnError(err)
+							return
+						}
+						if block {
+							return
+						}
+					}
+
+					root.initialX = x
+					root.initialY = y
+					root.isActive = true
+
+					if _boundary != nil {
+						rect := dom.Doc.QuerySelector("[data-i='" + root.childUUID + "']").JSValue().Call("getBoundingClientRect")
+
+						root.cursorOffsetLeft = clientX - rect.Get("left").Int()
+						root.cursorOffsetTop = clientY - rect.Get("top").Int()
+						root.cursorOffsetRight = rect.Get("right").Int() - clientX
+						root.cursorOffsetBottom = rect.Get("bottom").Int() - clientY
+					}
+
+					go root.c.Update()
+				})
+
+				endEvent := event(func(event dom.Event) {
+					if !root.isActive {
+						return
+					}
+
+					if config.OnEnd != nil {
+						reset, err := config.OnEnd(web.ToUniteObject(event), root.offsetX, root.offsetY)
+						if err != nil {
+							root.c.WarnError(err)
 							return
 						}
 
-						event.PreventDefault()
-
-						var x, y int
-						if event.Type() == "touchmove" {
-							t := event.JSValue().Get("touches").Get("0")
-							x = t.Get("clientX").Int()
-							y = t.Get("clientY").Int()
-						} else {
-							x = event.JSValue().Get("clientX").Int()
-							y = event.JSValue().Get("clientY").Int()
-						}
-
-						if _boundary != nil {
-							rect := _boundary.JSValue().Call("getBoundingClientRect")
-
-							var (
-								left   = rect.Get("left").Int()
-								top    = rect.Get("top").Int()
-								bottom = rect.Get("bottom").Int()
-								right  = rect.Get("right").Int()
-
-								cursorOffsetLeft   = this.Get("cursorOffsetLeft").(int)
-								cursorOffsetTop    = this.Get("cursorOffsetTop").(int)
-								cursorOffsetRight  = this.Get("cursorOffsetRight").(int)
-								cursorOffsetBottom = this.Get("cursorOffsetBottom").(int)
-							)
-
-							if (x - cursorOffsetLeft) <= left {
-								x = left + cursorOffsetLeft
-							} else if (x + cursorOffsetRight) >= right {
-								x = right - cursorOffsetRight
-							}
-
-							if (y - cursorOffsetTop) <= top {
-								y = top + cursorOffsetTop
-							} else if (y + cursorOffsetBottom) >= bottom {
-								y = bottom - cursorOffsetBottom
-							}
-						}
-
-						x = (x - this.Get("initialX").(int)) * config.ifXDisabled
-						y = (y - this.Get("initialY").(int)) * config.ifYDisabled
-
-						this.Set(map[string]interface{}{
-							"offsetX": x,
-							"offsetY": y,
-						})
-
-						if config.OnMove != nil {
-							err := config.OnMove(web.ToUniteObject(event), x, y)
-							if err != nil {
-								this.ConsoleError(err.Error())
-							}
-						}
-					})
-
-					startEvent := event(func(event dom.Event) {
-						if config.Handle == "" {
-							_target := event.Target()
-							if _target.GetAttribute("data-i").String() != childUUID && !this.Element().(*dom.Element).Contains(_target) {
-								return
-							}
-						} else if !event.Target().ClassList().Contains(config.Handle) {
+						if reset {
+							root.initialX = 0
+							root.initialY = 0
+							root.offsetX = 0
+							root.offsetY = 0
+							root.isActive = false
+							go root.c.Update()
 							return
 						}
+					}
 
-						var clientX, clientY int
-						if event.Type() == "touchstart" {
-							t := event.JSValue().Get("touches").Get("0")
-							clientX = t.Get("clientX").Int()
-							clientY = t.Get("clientY").Int()
-						} else {
-							clientX = event.JSValue().Get("clientX").Int()
-							clientY = event.JSValue().Get("clientY").Int()
-						}
+					root.initialX = root.offsetX
+					root.initialY = root.offsetY
+					root.isActive = false
 
-						x := clientX - this.Get("offsetX").(int)
-						y := clientY - this.Get("offsetY").(int)
+					go root.c.Update()
+				})
 
-						if config.OnStart != nil {
-							block, err := config.OnStart(web.ToUniteObject(event), x, y)
-							if err != nil {
-								this.ConsoleError(err.Error())
-								return
-							}
-							if block {
-								return
-							}
-						}
+				addEvent(dom.Doc, "mousemove", moveEvent)
+				addEvent(dom.Doc, "mousedown", startEvent)
+				addEvent(dom.Doc, "mouseup", endEvent)
 
-						updatesMap := map[string]interface{}{
-							"initialX": x,
-							"initialY": y,
-							"isActive": true,
-						}
+				root.moveEvent = moveEvent
+				root.startEvent = startEvent
+				root.endEvent = endEvent
 
-						if _boundary != nil {
-							rect := dom.Doc.QuerySelector("[data-i='" + childUUID + "']").JSValue().Call("getBoundingClientRect")
-							updatesMap["cursorOffsetLeft"] = clientX - rect.Get("left").Int()
-							updatesMap["cursorOffsetTop"] = clientY - rect.Get("top").Int()
-							updatesMap["cursorOffsetRight"] = rect.Get("right").Int() - clientX
-							updatesMap["cursorOffsetBottom"] = rect.Get("bottom").Int() - clientY
-						}
+				return nil
+			},
+			BeforeDestroy: func() error {
+				removeEvent(dom.Doc, "mousemove", root.moveEvent)
+				removeEvent(dom.Doc, "mousedown", root.startEvent)
+				removeEvent(dom.Doc, "mouseup", root.endEvent)
 
-						this.Set(updatesMap)
-					})
+				return nil
+			},
+		},
+	}
+	root.c = c
 
-					endEvent := event(func(event dom.Event) {
-						if !this.Get("isActive").(bool) {
-							return
-						}
+	return c.Init()
+}
 
-						if config.OnEnd != nil {
-							reset, err := config.OnEnd(web.ToUniteObject(event), this.Get("offsetX").(int), this.Get("offsetY").(int))
-							if err != nil {
-								this.ConsoleError(err.Error())
-								return
-							}
+type dndEl struct {
+	c         *gas.C
+	e         gas.External
+	config    *Config
+	childUUID string
 
-							if reset {
-								this.Set(map[string]interface{}{
-									"initialX": 0,
-									"initialY": 0,
+	initialX int
+	initialY int
 
-									"offsetX":  0,
-									"offsetY":  0,
-									"isActive": false,
-								})
-								return
-							}
-						}
+	offsetX int
+	offsetY int
 
-						this.Set(map[string]interface{}{
-							"initialX": this.Get("offsetX"),
-							"initialY": this.Get("offsetY"),
-							"isActive": false,
-						})
-					})
+	cursorOffsetLeft   int
+	cursorOffsetTop    int
+	cursorOffsetRight  int
+	cursorOffsetBottom int
 
-					addEvent(dom.Doc, "mousemove", moveEvent)
-					addEvent(dom.Doc, "mousedown", startEvent)
-					addEvent(dom.Doc, "mouseup", endEvent)
+	isActive bool
 
-					this.Set(map[string]interface{}{
-						"moveEvent":  moveEvent,
-						"startEvent": startEvent,
-						"endEvent":   endEvent,
-					})
+	startEvent js.Func
+	endEvent   js.Func
+	moveEvent  js.Func
+}
 
-					return nil
+func (root *dndEl) Render() []interface{} {
+	subRoot := &dndSubEl{
+		e: root.e,
+	}
+
+	c := &gas.C{
+		Root:               subRoot,
+		ElementIsImportant: true,
+		Element: &gas.E{
+			UUID: root.childUUID,
+			Binds: map[string]gas.Bind{
+				"style": func() string {
+					return fmt.Sprintf("transform: translate3d(%dpx, %dpx, 0px)", root.offsetX, root.offsetY)
 				},
-				BeforeDestroy: func() error {
-					if _, ok := this.Get("moveEvent").(js.Func); !ok {
-						return errors.New("invalid component Data")
+				"class": func() string {
+					var isActiveClass string
+					if root.isActive {
+						isActiveClass = root.config.Class + "-active"
 					}
-
-					removeEvent(dom.Doc, "mousemove", this.Get("moveEvent").(js.Func))
-					removeEvent(dom.Doc, "mousedown", this.Get("startEvent").(js.Func))
-					removeEvent(dom.Doc, "mouseup", this.Get("endEvent").(js.Func))
-
-					return nil
+					return root.config.Class + " " + isActiveClass
 				},
 			},
 		},
-		func(this *gas.Component) []interface{} {
-			return []interface{}{
-				gas.NE(
-					&gas.C{
-						UUID: childUUID,
-						Binds: map[string]gas.Bind{
-							"style": func() string {
-								return fmt.Sprintf("transform: translate3d(%dpx, %dpx, 0px)", this.Get("offsetX"), this.Get("offsetY"))
-							},
-							"class": func() string {
-								isActive := this.Get("isActive").(bool)
-								var isActiveClass string
-								if isActive {
-									isActiveClass = config.Class + "-active"
-								}
-								return config.Class + " " + isActiveClass
-							},
-						},
-						Hooks: gas.Hooks{
-							Mounted: func(p *gas.C) error {
-								_el := p.Element().(*dom.Element)
+		Hooks: gas.Hooks{
+			Mounted: func() error {
+				_el := subRoot.c.Element.BEElement().(*dom.Element)
 
-								addEvent(_el, "touchstart", this.Get("startEvent").(js.Func))
-								addEvent(_el, "touchend", this.Get("endEvent").(js.Func))
-								addEvent(_el, "touchcancel", this.Get("endEvent").(js.Func))
-								addEvent(_el, "touchmove", this.Get("moveEvent").(js.Func))
+				addEvent(_el, "touchstart", root.startEvent)
+				addEvent(_el, "touchend", root.endEvent)
+				addEvent(_el, "touchcancel", root.endEvent)
+				addEvent(_el, "touchmove", root.moveEvent)
 
-								return nil
-							},
-						},
-					},
-					e.Body...),
-			}
-		})
+				return nil
+			},
+		},
+	}
+	subRoot.c = c
+
+	return gas.CL(c.Init())
+}
+
+type dndSubEl struct {
+	c *gas.C
+	e gas.External
+}
+
+func (root *dndSubEl) Render() []interface{} {
+	return root.e.Body
 }
 
 func addEvent(e dom.Node, typ string, h js.Func) {

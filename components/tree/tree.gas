@@ -1,26 +1,24 @@
 <template root="treeEl">
-  <div>
-      <div class="tree">
-          <div class="tree-header">
-              <b>
-                  {{ root.config.Name }}
-              </b>
-              <button class="tree-hide-btn" @click="root.toggleIsHidden()" g-if="root.config.CanBeHidden">
-                  <span g-if="root.isHidden">
-                      Show
-                  </span>
-                  <span g-else>
-                      Hide
-                  </span>
-              </button>
-          </div>
-          <ul class="tree-items" g-if="!root.isHidden">
-              <li g-for="_, nItem := range root.config.Items">
-                  <e run="renderItem(nItem, root.config)"></e>
-              </li>
-          </ul>
-      </div>
-  </div>
+    <div class="tree">
+        <div class="tree-header">
+            <b>
+                {{ root.config.Name }}
+            </b>
+            <button class="tree-hide-btn" @click="root.toggleIsHidden()" g-if="root.config.CanBeHidden">
+                <span g-if="root.isHidden">
+                    Show
+                </span>
+                <span g-else>
+                    Hide
+                </span>
+            </button>
+        </div>
+        <ul class="tree-items" g-if="!root.isHidden">
+            <li g-for="_, nItem := range root.config.Items">
+                <e run="renderItem(nItem, root.config)"></e>
+            </li>
+        </ul>
+    </div>
 </template>
 
 <script>
