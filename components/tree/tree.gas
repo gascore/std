@@ -55,6 +55,9 @@ type treeEl struct {
 
   isHidden bool
   config *Config
+
+  items []*gas.E
+  isStable bool
 }
 
 func (root *treeEl) toggleIsHidden() {
@@ -66,7 +69,7 @@ func (root *treeEl) toggleIsHidden() {
   root.c.Update()
 }
 
-func GetTree(config *Config) *gas.Element {
+func GetTree(config *Config) *gas.E {
 	if config.Items == nil {
 		dom.ConsoleError("invalid items")
 		return nil

@@ -61,7 +61,10 @@ func renderItem(item *Item, config *Config) *gas.Element {
         isHidden: true,
     }
 
-    c := &gas.C{Root:root}
+    c := &gas.C{
+        NotPointer: true,
+        Root:root,
+    }
     root.c = c
 
     return c.Init()

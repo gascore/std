@@ -54,8 +54,8 @@ func (config *Config) normalize() {
 	}
 }
 
-// DNDFree free draggable component
-func DNDFree(config *Config, e gas.External) *gas.E {
+// GetDNDFree return free draggable component
+func GetDNDFree(config *Config) gas.DynamicElement {
 	config.normalize()
 
 	if config.XDisabled && config.YDisabled {
@@ -66,7 +66,6 @@ func DNDFree(config *Config, e gas.External) *gas.E {
 	childUUID := uuid4.New().String()
 
 	root := &dndEl{
-		e:         e,
 		config:    config,
 		childUUID: childUUID,
 	}
@@ -89,7 +88,7 @@ func DNDFree(config *Config, e gas.External) *gas.E {
 					}
 				}
 
-				moveEvent := event(func(event dom.Event) {
+				root.moveEvent = event(func(event dom.Event) {
 					if !root.isActive {
 						return
 					}
@@ -150,7 +149,7 @@ func DNDFree(config *Config, e gas.External) *gas.E {
 					}
 				})
 
-				startEvent := event(func(event dom.Event) {
+				root.startEvent = event(func(event dom.Event) {
 					if config.Handle == "" {
 						_target := event.Target()
 						if _target.GetAttribute("data-i").String() != root.childUUID && !root.c.Element.BEElement().(*dom.Element).Contains(_target) {
@@ -200,7 +199,7 @@ func DNDFree(config *Config, e gas.External) *gas.E {
 					go root.c.Update()
 				})
 
-				endEvent := event(func(event dom.Event) {
+				root.endEvent = event(func(event dom.Event) {
 					if !root.isActive {
 						return
 					}
@@ -230,13 +229,9 @@ func DNDFree(config *Config, e gas.External) *gas.E {
 					go root.c.Update()
 				})
 
-				addEvent(dom.Doc, "mousemove", moveEvent)
-				addEvent(dom.Doc, "mousedown", startEvent)
-				addEvent(dom.Doc, "mouseup", endEvent)
-
-				root.moveEvent = moveEvent
-				root.startEvent = startEvent
-				root.endEvent = endEvent
+				addEvent(dom.Doc, "mousemove", root.moveEvent)
+				addEvent(dom.Doc, "mousedown", root.startEvent)
+				addEvent(dom.Doc, "mouseup", root.endEvent)
 
 				return nil
 			},
@@ -251,7 +246,11 @@ func DNDFree(config *Config, e gas.External) *gas.E {
 	}
 	root.c = c
 
-	return c.Init()
+	el := c.Init()
+	return func(e gas.External) *gas.E {
+		root.e = e
+		return el
+	}
 }
 
 type dndEl struct {
@@ -285,6 +284,7 @@ func (root *dndEl) Render() []interface{} {
 
 	c := &gas.C{
 		Root:               subRoot,
+		NotPointer:         true,
 		ElementIsImportant: true,
 		Element: &gas.E{
 			UUID: root.childUUID,

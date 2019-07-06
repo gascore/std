@@ -18,10 +18,12 @@ const ChangeRouteEvent = "changeroute"
 // renderedPaths dummy cache for rendered paths 
 var renderedPaths = make(map[string]string)
 
+type RouteElement func(info RouteInfo) *gas.Element
+
 // Route information about route
 type Route struct {
 	Name      string
-	Element   func(info RouteInfo) *gas.Element
+	Element   RouteElement
 	Exact     bool
 	Sensitive bool
 
@@ -188,12 +190,12 @@ func (ctx *Ctx) ChangeRoute(path string, replace bool) {
 			return
 		}
 
-		if len(el.RChildes) == 0 {
-			c.ConsoleError("invalid ctx.This RChildes")
+		if len(el.Childes) == 0 {
+			c.ConsoleError("invalid ctx.This Childes")
 			return
 		}
 
-		routeWrap, ok := el.RChildes[0].(*gas.E)
+		routeWrap, ok := el.Childes[0].(*gas.E)
 		if !ok {
 			c.ConsoleError("invalid gas-router route wrapper type")
 			return

@@ -153,9 +153,9 @@ func (root *vlistEl) genItems() *gas.E {
 		}
 	}
 
-	var _items []interface{}
+	var items []interface{}
 	for i, item := range root.items {
-		_items = append(_items, root.renderer(item, i, root.start))
+		items = append(items, root.renderer(item, i, root.start))
 	}
 
 	return gas.NE(
@@ -174,7 +174,8 @@ func (root *vlistEl) genItems() *gas.E {
 				"class": "vlist-content",
 			},
 		},
-		_items...)
+		items,
+	)
 }
 
 func getSlice(arr []interface{}, start, end int) []interface{} {

@@ -6,7 +6,7 @@
 |---------------------|---------|---------|
 | dnd/free            | +       | -       |
 | dnd/lists           | -       | -       |
-| Layout              | +       | -       |
+| Layout              | -       | -       |
 | Tree                | +       | -       |
 | Modal               | +       | -       |
 | Virtual List        | +       | -       |

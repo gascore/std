@@ -88,6 +88,77 @@ type Element struct {
 	Index int
 }
 
+// GetLayout return resizable layout
+func GetLayout(config *Config) gas.DynamicElement {
+	config.normalize()
+
+	var sizesSum float64 // check sizes sum == 100 && make Size.Start valid
+	for _, size := range config.Sizes {
+		if size.Start > size.Max {
+			size.Start = size.Max
+		} else if size.Min > size.Start {
+			size.Start = size.Min
+		}
+		sizesSum += size.Start
+	}
+
+	if sizesSum != 100 {
+		// because i don't want to create an implicit state change
+		dom.ConsoleError("invalid sizes: size.Start sum != 100")
+		return nil
+	}
+
+	root := &layoutEl {
+		config: config,
+	}
+
+	c := &gas.C {
+		Root: root,
+		Element: &gas.E{
+			Attrs: map[string]string{
+				"class": fmt.Sprintf("%s %s-%s", config.LayoutClass, config.LayoutClass, config.typeString),
+			},
+		},
+	}
+	root.c = c
+
+	el := c.Init()
+	return func(e gas.External) *gas.E {
+		if len(e.Body) != len(config.Sizes) {
+			dom.ConsoleError("not enough Element sizes")
+			return nil
+		}
+
+		var elements []Element
+		var sizes []Size
+		for i, child := range e.Body {
+			childE, ok := child.(*gas.E)
+			if !ok {
+				dom.ConsoleError(fmt.Sprintf("invalid child in layout - child is not element: '%T'", child))
+				return nil
+			}
+
+			if childE.Attrs == nil {
+				childE.Attrs = make(map[string]string)
+			}
+
+			size := config.Sizes[i]
+			size.current = size.Start
+
+			sizes = append(sizes, size)
+			elements = append(elements, Element{E: childE, Index: i})
+		}
+
+		root.config.allGuttersSize = (len(elements) - 1) * config.GutterSize
+		root.config.byGuttersOffset = float64(config.allGuttersSize) / float64(len(elements))
+
+		root.sizes = sizes
+		root.elements = elements
+
+		return el
+	}
+}
+
 type layoutEl struct {
 	c *gas.C
 
@@ -128,75 +199,6 @@ func (root *layoutEl) GetSizes() []Size {
 func (root *layoutEl) SetSizes(newSizes []Size) {
 	root.sizes = newSizes
 	go root.c.Update()
-}
-
-// Layout return resizable layout
-func Layout(config *Config, e gas.External) *gas.Element {
-	e.Body = gas.RemoveStrings(e.Body)
-
-	if len(e.Body) != len(config.Sizes) {
-		dom.ConsoleError("not enough Element sizes")
-		return nil
-	}
-
-	config.normalize()
-
-	var sizesSum float64 // check sizes sum == 100 && make Size.Start valid
-	for _, size := range config.Sizes {
-		if size.Start > size.Max {
-			size.Start = size.Max
-		} else if size.Min > size.Start {
-			size.Start = size.Min
-		}
-		sizesSum += size.Start
-	}
-
-	if sizesSum != 100 {
-		// because i don't want to create an implicit state change
-		dom.ConsoleError("invalid sizes: size.Start sum != 100")
-		return nil
-	}
-
-	var elements []Element
-	var sizes []Size
-	for i, child := range e.Body {
-		childE, ok := child.(*gas.E)
-		if !ok {
-			dom.ConsoleError(fmt.Sprintf("invalid child in layout - child is not element: '%T'", child))
-			return nil
-		}
-
-		if childE.Attrs == nil {
-			childE.Attrs = make(map[string]string)
-		}
-
-		size := config.Sizes[i]
-		size.current = size.Start
-
-		sizes = append(sizes, size)
-		elements = append(elements, Element{E: childE, Index: i})
-	}
-
-	config.allGuttersSize = (len(elements) - 1) * config.GutterSize
-	config.byGuttersOffset = float64(config.allGuttersSize) / float64(len(elements))
-
-	root := &layoutEl {
-		sizes: sizes,
-		config: config,
-		elements: elements,
-	}
-
-	c := &gas.C {
-		Root: root,
-		Element: &gas.E{
-			Attrs: map[string]string{
-				"class": fmt.Sprintf("%s %s-%s", config.LayoutClass, config.LayoutClass, config.typeString),
-			},
-		},
-	}
-	root.c = c
-
-	return c.Init()
 }
 
 type sizesFubInterface interface{
