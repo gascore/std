@@ -3,9 +3,10 @@ package store
 import (
 	"errors"
 	"fmt"
-	"github.com/gascore/gas"
 	"reflect"
 	"strings"
+
+	"github.com/gascore/gas"
 )
 
 // Store main structure
@@ -19,10 +20,7 @@ type Store struct {
 	BeforeEmit []BeforeEmitHook
 	AfterEmit  []AfterEmitHook
 
-	subscribers []Sub
-
-	forRootParents    map[*gas.Element]bool
-	forNonRootParents map[*gas.Element]bool
+	Subscribers []*gas.Component
 }
 
 // MiddleWare let you do something before all events who have this (MiddleWare.Prefix) prefix.
@@ -34,10 +32,10 @@ type MiddleWare struct {
 	Hook   func(s *Store, values []interface{}) error
 }
 
-// OnCreateHook called when store initializing 
+// OnCreateHook called when store initializing
 type OnCreateHook func(s *Store) error
 
-// BeforeEmitHook called before event was processed 
+// BeforeEmitHook called before event was processed
 type BeforeEmitHook func(store *Store, eventName string, values []interface{}) error
 
 // AfterEmitHook called after event was proccessed
@@ -45,13 +43,6 @@ type AfterEmitHook func(store *Store, eventName string, updatesMap map[string]in
 
 // Handler - event handler with your stuff. Returns updatesData which will be appended to main store Data.
 type Handler func(s *Store, values ...interface{}) (updatesMap map[string]interface{}, err error)
-
-// Sub - component which will call ForceUpdate after Store updates
-type Sub struct {
-	Component *gas.Component
-
-	CustomUpdater func() bool
-}
 
 // New initialize new store
 func New(s *Store) (*Store, error) {
@@ -68,16 +59,13 @@ func New(s *Store) (*Store, error) {
 		return nil, errors.New("store data is nil")
 	}
 
-	s.forRootParents = make(map[*gas.Element]bool)
-	s.forNonRootParents = make(map[*gas.Element]bool)
-
 	return s, nil
 }
 
-// GetSafely return Store.Data value by query
-func (s *Store) GetSafely(query string) (interface{}, error) {
-	val := s.Data[query]
-	if val == nil {
+// GetWithError return Store.Data value by query
+func (s *Store) GetWithError(query string) (interface{}, error) {
+	val, ok := s.Data[query]
+	if !ok {
 		return nil, fmt.Errorf("undefined value: %s", query)
 	}
 
@@ -86,7 +74,7 @@ func (s *Store) GetSafely(query string) (interface{}, error) {
 
 // Get proxy for GetSafely with error ignoring
 func (s *Store) Get(query string) interface{} {
-	val, _ := s.GetSafely(query)
+	val, _ := s.GetWithError(query)
 	return val
 }
 
@@ -168,25 +156,20 @@ func (s *Store) UpdateStore(updatesMap map[string]interface{}) error {
 }
 
 // RegisterComponent register new component in store
-func (s *Store) RegisterComponent(c *gas.Component, customUpdater func() bool) *gas.Component {
-	sub := Sub{
-		Component:     c,
-		CustomUpdater: customUpdater,
-	}
-
-	mounted := c.Hooks.Mounted
-	c.Hooks.Mounted = func() error {
-		isRoot, err := s.isRoot(sub.Component)
+func (s *Store) RegisterComponent(c *gas.C) *gas.Component {
+	created := c.Hooks.Created
+	c.Hooks.Created = func() error {
+		isRoot, err := s.isRoot(c)
 		if err != nil {
 			return err
 		}
 
 		if isRoot {
-			s.subscribers = append(s.subscribers, sub)
+			s.Subscribers = append(s.Subscribers, c)
 		}
 
-		if mounted != nil {
-			err := mounted()
+		if created != nil {
+			err := created()
 			if err != nil {
 				return err
 			}
@@ -197,10 +180,10 @@ func (s *Store) RegisterComponent(c *gas.Component, customUpdater func() bool) *
 
 	willDestroy := c.Hooks.BeforeDestroy
 	c.Hooks.BeforeDestroy = func() error {
-		for i, c := range s.subscribers {
-			if sub.Component == c.Component {
-				// remove sub from subscribers
-				s.subscribers = append(s.subscribers[0:i], s.subscribers[i+1:]...)
+		for i, elC := range s.Subscribers {
+			if c == elC {
+				// remove sub from Subscribers
+				s.Subscribers = append(s.Subscribers[0:i], s.Subscribers[i+1:]...)
 			}
 		}
 
@@ -218,45 +201,30 @@ func (s *Store) RegisterComponent(c *gas.Component, customUpdater func() bool) *
 }
 
 // RC alias for Store.RegisterComponent
-func (s *Store) RC(c *gas.Component, customUpdater func() bool) *gas.Component {
-	return s.RegisterComponent(c, customUpdater)
+func (s *Store) RC(c *gas.Component) *gas.Component {
+	return s.RegisterComponent(c)
 }
 
 // isRoot check if component have no RegisteredComponents which will update him after store updates
 func (s *Store) isRoot(c *gas.Component) (bool, error) {
 	if c.Element.Parent == nil { // it's root element
-		s.forRootParents[c.Element] = true
 		return true, nil
 	}
 
 	parent := c.Element.ParentComponent()
 	if parent == nil {
-		s.forRootParents[parent] = true
 		return true, nil
 	}
 
-	if s.forRootParents[parent] {
-		return true, nil
-	}
-	if s.forNonRootParents[parent] {
-		return false, nil
-	}
-
-	var haveParentInSubs bool
-	for _, sub := range s.subscribers {
-		changed, err := gas.Changed(sub.Component, parent.Component)
+	for _, sub := range s.Subscribers {
+		changed, err := gas.Changed(sub, parent)
 		if err != nil {
 			return false, err
 		}
 
 		if !changed {
-			haveParentInSubs = true
+			return false, nil
 		}
-	}
-
-	if haveParentInSubs {
-		s.forNonRootParents[parent] = true
-		return false, nil
 	}
 
 	return s.isRoot(parent.Component)
@@ -264,16 +232,12 @@ func (s *Store) isRoot(c *gas.Component) (bool, error) {
 
 // update run ForceUpdate for all subs
 func (s *Store) update() error {
-	for _, sub := range s.subscribers {
-		if sub.CustomUpdater != nil && !sub.CustomUpdater() {
-			return nil
-		}
-
-		if sub.Component.Element.BEElement() == nil {
+	for _, sub := range s.Subscribers {
+		if sub.Element.BEElement() == nil {
 			return errors.New("element undefined")
 		}
 
-		err := sub.Component.UpdateWithError()
+		err := sub.UpdateWithError()
 		if err != nil {
 			return err
 		}

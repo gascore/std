@@ -100,6 +100,7 @@ func (ctx *Ctx) GetRouter() *gas.Element {
 	}
 
 	c := &gas.C{
+		NotPointer: true,
 		Root: root,
 		Hooks: gas.Hooks{
 			Mounted: func() error {

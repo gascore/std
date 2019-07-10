@@ -70,6 +70,13 @@ func (config *Config) normalize() {
 	if config.GutterClass == "" {
 		config.GutterClass = "gutter"
 	}
+
+	config.allGuttersSize  = (len(config.Sizes) - 1) * config.GutterSize
+	config.byGuttersOffset = float64(config.allGuttersSize) / float64(len(config.Sizes))
+
+	for i, _ := range config.Sizes {
+		config.Sizes[i].current = config.Sizes[i].Start
+	}
 }
 
 type Event func(first, second Element, _gutter *dom.Element) (stopIt bool, err error)
@@ -110,6 +117,7 @@ func GetLayout(config *Config) gas.DynamicElement {
 
 	root := &layoutEl {
 		config: config,
+		sizes: config.Sizes,
 	}
 
 	c := &gas.C {
@@ -125,35 +133,13 @@ func GetLayout(config *Config) gas.DynamicElement {
 	el := c.Init()
 	return func(e gas.External) *gas.E {
 		if len(e.Body) != len(config.Sizes) {
+			fmt.Println("body", len(e.Body))
+			fmt.Println("sizes", len(config.Sizes))
 			dom.ConsoleError("not enough Element sizes")
 			return nil
 		}
 
-		var elements []Element
-		var sizes []Size
-		for i, child := range e.Body {
-			childE, ok := child.(*gas.E)
-			if !ok {
-				dom.ConsoleError(fmt.Sprintf("invalid child in layout - child is not element: '%T'", child))
-				return nil
-			}
-
-			if childE.Attrs == nil {
-				childE.Attrs = make(map[string]string)
-			}
-
-			size := config.Sizes[i]
-			size.current = size.Start
-
-			sizes = append(sizes, size)
-			elements = append(elements, Element{E: childE, Index: i})
-		}
-
-		root.config.allGuttersSize = (len(elements) - 1) * config.GutterSize
-		root.config.byGuttersOffset = float64(config.allGuttersSize) / float64(len(elements))
-
-		root.sizes = sizes
-		root.elements = elements
+		root.e = e
 
 		return el
 	}
@@ -162,30 +148,42 @@ func GetLayout(config *Config) gas.DynamicElement {
 type layoutEl struct {
 	c *gas.C
 
-	elements []Element
-
+	e gas.External
 	sizes []Size
+
 	config *Config
 }
 
 func (root *layoutEl) Render() []interface{} {
 	var childes []interface{}
-
 	config := root.config
 
-	for i, child := range root.elements {
+	for i, child := range root.e.Body {
+		childE, ok := child.(*gas.E)
+		if !ok {
+			dom.ConsoleError(fmt.Sprintf("invalid child in layout - child is not element: '%T'", child))
+			return nil
+		}
+
 		childes = append(childes, gas.NE(
 			&gas.E{
 				Attrs: map[string]string{
 					"class":  config.LayoutClass + "-item",
-					"style":  fmt.Sprintf("%s: calc(%f%s - %fpx); %s: 100%s;", config.orientation, root.sizes[child.Index].current, "%", config.byGuttersOffset, config.subOrientation, "%"),
+					"style":  fmt.Sprintf("%s: calc(%f%s - %fpx); %s: 100%s;", config.orientation, root.sizes[i].current, "%", config.byGuttersOffset, config.subOrientation, "%"),
 					"data-i": fmt.Sprintf("%d", i),
 				},
 			},
-			child.E,
+			childE,
 		))
-		if i != len(root.elements)-1 {
-			childes = append(childes, gutter(root, config, child, root.elements[i+1]))
+
+		if i != len(root.e.Body)-1 {
+			nextChild, ok := root.e.Body[i+1].(*gas.E)
+			if !ok {
+				dom.ConsoleError(fmt.Sprintf("invalid child in layout - child is not element: '%T'", child))
+				return nil
+			}
+
+			childes = append(childes, gutter(root, config, Element{E:childE, Index:i}, Element{E:nextChild, Index:i+1}))
 		}
 	}
 
@@ -240,9 +238,9 @@ func gutter(sizesFub sizesFubInterface, config *Config, first, second Element) *
 				_el := root.c.Element.BEElement().(*dom.Element)
 
 				computedStyles := sjs.Global().Call("getComputedStyle", _el.JSValue())
-				var parentSize string
+				var parentSize interface{}
 				if config.Type {
-					parentSize = fmt.Sprintf("%dpx", _el.ParentElement().ClientHeight() - parseP(computedStyles.Get("paddingTop")) - parseP(computedStyles.Get("paddingBottom")))
+					parentSize = _el.ParentElement().ClientHeight() - parseP(computedStyles.Get("paddingTop")) - parseP(computedStyles.Get("paddingBottom"))
 				} else {
 					parentSize = "100%"
 				}
@@ -254,12 +252,6 @@ func gutter(sizesFub sizesFubInterface, config *Config, first, second Element) *
 					}
 
 					event.PreventDefault()
-
-					/*_el = event.Target()
-					if _el.ParentElement() == nil {
-						dom.ConsoleLog(_el.JSValue())
-						log.Fatal("WTF?!?!??!?!")
-					}*/
 
 					var start float64
 					if config.Type {
