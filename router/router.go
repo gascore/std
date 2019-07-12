@@ -148,17 +148,19 @@ func(root *routerComponent) Render() []interface{} {
 
 	ctx.This = root
 
-	return gas.CL(
-		gas.NE(
-			&gas.E{
-				Attrs: map[string]string{
-					"data-path": currentPath,
-					"id":        "gas-router_route-wraper",
-				},
+	return gas.CL(ctx.findRoute(currentPath))
+}
+
+func wrapRouteInfo(el *gas.E, path string) *gas.E {
+	return gas.NE(
+		&gas.E{
+			Attrs: map[string]string{
+				"data-path": path,
+				"id":        "gas-router_route-wraper",
 			},
-			ctx.findRoute(currentPath),
-		),
-	)
+		},
+		el,
+	) 
 }
 
 // ChangeRoute change current route
@@ -229,7 +231,7 @@ func (ctx *Ctx) findRoute(currentPath string) *gas.Element {
 	c    := root.c
 
 	if currentPath == root.lastRoute {
-		return root.lastItem
+		return wrapRouteInfo(root.lastItem, currentPath)
 	}
 
 	for _, route := range ctx.Routes {
@@ -244,13 +246,15 @@ func (ctx *Ctx) findRoute(currentPath string) *gas.Element {
 		}
 
 		if len(route.Redirect) != 0 {
+			var path string
 			if route.RedirectParams == nil && route.RedirectQueries == nil {
-				ctx.Push(route.Redirect, true)
+				path = route.Redirect
 			} else {
-				ctx.PushDynamic(route.Redirect, route.RedirectParams, route.RedirectQueries, true)
+				path = ctx.fillPath(route.Redirect, route.RedirectParams, route.RedirectQueries)
 			}
 
-			return ctx.Settings.Redirect
+			ctx.ChangeRoute(path, true)
+			return ctx.findRoute(path)
 		}
 
 		newEl := route.Element(
@@ -270,10 +274,10 @@ func (ctx *Ctx) findRoute(currentPath string) *gas.Element {
 		root.lastRoute = currentPath
 		root.lastItem  = newEl
 
-		return newEl
+		return wrapRouteInfo(newEl, currentPath)
 	}
 
-	return ctx.Settings.NotFound
+	return wrapRouteInfo(gas.NE(&gas.E{Tag:"h1"}, ctx.Settings.NotFound), currentPath)
 }
 
 func (ctx *Ctx) getPath() string {

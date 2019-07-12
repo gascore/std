@@ -20,7 +20,7 @@ type Store struct {
 	BeforeEmit []BeforeEmitHook
 	AfterEmit  []AfterEmitHook
 
-	Subscribers []*gas.Component
+	subs []*gas.Component
 }
 
 // MiddleWare let you do something before all events who have this (MiddleWare.Prefix) prefix.
@@ -165,7 +165,7 @@ func (s *Store) RegisterComponent(c *gas.C) *gas.Component {
 		}
 
 		if isRoot {
-			s.Subscribers = append(s.Subscribers, c)
+			s.subs = append(s.subs, c)
 		}
 
 		if created != nil {
@@ -180,10 +180,13 @@ func (s *Store) RegisterComponent(c *gas.C) *gas.Component {
 
 	willDestroy := c.Hooks.BeforeDestroy
 	c.Hooks.BeforeDestroy = func() error {
-		for i, elC := range s.Subscribers {
+		for i, elC := range s.subs {
 			if c == elC {
-				// remove sub from Subscribers
-				s.Subscribers = append(s.Subscribers[0:i], s.Subscribers[i+1:]...)
+				if i >= len(s.subs) {
+					i = len(s.subs) - 1
+				}
+
+				s.subs = append(s.subs[:i], s.subs[i+1:]...)
 			}
 		}
 
@@ -216,7 +219,7 @@ func (s *Store) isRoot(c *gas.Component) (bool, error) {
 		return true, nil
 	}
 
-	for _, sub := range s.Subscribers {
+	for _, sub := range s.subs {
 		changed, err := gas.Changed(sub, parent)
 		if err != nil {
 			return false, err
@@ -232,7 +235,7 @@ func (s *Store) isRoot(c *gas.Component) (bool, error) {
 
 // update run ForceUpdate for all subs
 func (s *Store) update() error {
-	for _, sub := range s.Subscribers {
+	for _, sub := range s.subs {
 		if sub.Element.BEElement() == nil {
 			return errors.New("element undefined")
 		}
