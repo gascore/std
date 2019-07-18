@@ -15,27 +15,32 @@ import (
 
 // Config dnd-lists config
 type Config struct {
-	This *gas.E // link to Compoent storing arrays
-	Tag  string
-
+	This DndListsParent // link to Compoent storing arrays
+	
 	Group     string
 	FieldName string
-
+	
 	Events EventsHandlers
+
+	Tag  	string
+	ItemTag string
 
 	GroupClass       string
 	PreviewClass     string // class for the dragging item preview
 	PlaceholderClass string // class for the dragging item placeholder
 }
 
+type DndListsParent interface {
+	DndListSet(listName string, arr []interface{})
+	DndListGet(listName string) []interface{}
+	DndListUpdate()
+}
+
 // Lists return dnd-lists component
-func Lists(config *Config, e gas.External) *gas.E {
+func Lists(config *Config) gas.DynamicElement {
 	switch {
 	case config.This == nil:
 		dom.ConsoleError("invalid This: config.This == nil")
-		return nil
-	case len(e.Body) == 0:
-		dom.ConsoleError("no items in DragAndDrop body")
 		return nil
 	case len(config.Group) == 0:
 		dom.ConsoleError("invalid Group name")
@@ -47,156 +52,14 @@ func Lists(config *Config, e gas.External) *gas.E {
 		config.PlaceholderClass = "dnd-placeholder"
 	case len(config.PreviewClass) == 0:
 		config.PreviewClass = "dnd-preview"
-	}
-
-	for i, item := range gas.UnSpliceBody(e.Body) {
-		item, ok := item.(*gas.E)
-		if !ok {
-			dom.ConsoleError("invalid body child type (not *gas.Component)")
-			return nil
-		}
-
-		if item.Handlers == nil {
-			item.Handlers = make(map[string]gas.Handler)
-		}
-		if item.Attrs == nil {
-			item.Attrs = make(map[string]string)
-		}
-
-		item.Attrs["draggable"] = "true"
-		item.Attrs["data-group"] = config.Group
-		item.Attrs["data-field"] = config.FieldName
-		item.Attrs["data-is-item"] = "true"
-		item.Attrs["data-dnd-index"] = fmt.Sprintf("%d", i)
-
-		item.Hooks.Mounted = func() error {
-			_el := item.BEElement().(*dom.Element)
-
-			_el.AddEventListener("dragstart", func(e dom.Event) {
-				_el := e.Target()
-
-				indexS := _el.GetAttribute("data-dnd-index").String()
-				index, err := strconv.Atoi(indexS)
-				if err != nil {
-					warnError(err)
-					return
-				}
-
-				if config.Events.Started != nil {
-					block, err := config.Events.Started(StartedEvent{
-						Index: index,
-						Body:  web.ToUniteObject(e),
-					})
-					if err != nil {
-						warnError(err)
-						return
-					}
-
-					if block {
-						e.PreventDefault()
-						return
-					}
-				}
-
-				dataTransfer := e.JSValue().Get("dataTransfer")
-				dataTransfer.Call("setData", "group", config.Group)
-				dataTransfer.Call("setData", "field", config.FieldName)
-				dataTransfer.Call("setData", "index", indexS)
-				dataTransfer.Call("setData", "uuid", _el.GetAttribute("data-i").String())
-				dataTransfer.Call("setData", "group-id", _el.ParentElement().GetAttribute("data-dnd-group-id").String())
-				dataTransfer.Set("effectAllowed", "move")
-
-				_p := _el.ParentElement()
-				for _, _x := range dom.Doc.QuerySelectorAll("." + config.GroupClass) {
-					if _x.JSValue() == _p.JSValue() {
-						continue
-					}
-
-					_x.ClassList().Add(config.GroupClass + "-receiving")
-				}
-				_p.ClassList().Add(config.GroupClass + "-dragging")
-
-				_preview := _el.Clone()
-				_preview.ClassList().Add(config.PreviewClass)
-				_preview.Style().Set("position", "absolute")
-				_preview.Style().Set("top", "0")
-				_preview.Style().Set("left", "0")
-				_preview.Style().Set("zIndex", "-1")
-
-				_el.AppendChild(_preview)
-				dataTransfer.Call("setDragImage", _preview.JSValue(), e.JSValue().Get("offsetX").Int()+10, e.JSValue().Get("offsetY").Int()+10)
-
-				go func() {
-					time.Sleep(50 * time.Millisecond)
-					_preview.ParentElement().RemoveChild(_preview)
-				}()
-
-				e.Target().ClassList().Add(config.PlaceholderClass)
-			})
-
-			_el.AddEventListener("drop", func(e dom.Event) {
-				err := dropEvent(_el, config, e)
-				if err != nil {
-					dom.ConsoleError(err.Error())
-					return
-				}
-			})
-
-			_el.AddEventListener("dragend", func(event dom.Event) {
-				target := event.Target()
-
-				target.ClassList().Remove(config.PlaceholderClass)
-
-				indexS := target.GetAttribute("data-dnd-index").String()
-				oldIndex, err := strconv.Atoi(indexS)
-				if err != nil {
-					warnError(err)
-					return
-				}
-
-				newIndex := func() int {
-					_childes := item.Parent.BEElement().(*dom.Element).ChildNodes()
-					elID := target.GetAttribute("data-i").String()
-					for i, el := range _childes {
-						if el.GetAttribute("data-i").String() == elID {
-							return i
-						}
-					}
-					return -1
-				}()
-
-				if newIndex == -1 {
-					if config.Events.Removed != nil {
-						warnError(
-							config.Events.Removed(
-								RemovedEvent{
-									OldIndex: oldIndex,
-									Body:     web.ToUniteObject(event),
-								},
-							),
-						)
-					}
-				}
-
-				if config.Events.Moved != nil {
-					warnError(
-						config.Events.Moved(
-							StandardEvent{
-								OldIndex: oldIndex,
-								NewIndex: newIndex,
-								Body:     web.ToUniteObject(event),
-							},
-						),
-					)
-				}
-			})
-
-			return nil
-		}
+	case len(config.Tag) == 0:
+		config.Tag = "div"
+	case len(config.ItemTag) == 0:
+		config.Tag = "div"
 	}
 
 	root := &dndListEl{
-		e: e,
+		config: config,
 	}
 
 	c :=  &gas.C{
@@ -215,7 +78,7 @@ func Lists(config *Config, e gas.External) *gas.E {
 				_el.AddEventListener("drop", func(e dom.Event) {
 					err := dropEvent(_el, config, e)
 					if err != nil {
-						warnError(err)
+						root.c.WarnError(err)
 						return
 					}
 				})
@@ -311,13 +174,11 @@ func Lists(config *Config, e gas.External) *gas.E {
 					}
 
 					if config.Events.Leaved != nil {
-						warnError(
-							config.Events.Leaved(
-								LeavedEvent{
-									Body: web.ToUniteObject(event),
-								},
-							),
-						)
+						err := config.Events.Leaved(LeavedEvent{Body: web.ToUniteObject(event)})
+						if err != nil {
+							dom.ConsoleError(err.Error())
+							return
+						}
 					}
 				})
 
@@ -332,18 +193,164 @@ func Lists(config *Config, e gas.External) *gas.E {
 	}
 	root.c = c
 
-	return c.Init()
+	el := c.Init()
+	return func(e gas.External) *gas.E {
+		root.e = e
+		return el
+	}
 }
 
 type dndListEl struct {
 	c *gas.C
 	e gas.External
+	config *Config
 }
 
 func(root *dndListEl) Render() []interface{} {
+	var body []interface{}
+	config := root.config
 	e := root.e
-	if e.Slots != nil && root.e.Slots["header"] != nil {
-		body = append([]interface{}{e.Slots["header"]}, body...)
+	
+	if e.Slots != nil && e.Slots["header"] != nil {
+		body = append(body, e.Slots["header"])
+	}
+
+	for i, item := range gas.UnSpliceBody(e.Body) {
+		item, ok := item.(*gas.E)
+		if !ok {
+			dom.ConsoleError("invalid body child type (not *gas.Element)")
+			return nil
+		}
+
+		childRoot := &gas.EmptyRoot{Element:item}
+
+		childC := &gas.C{
+			Root: childRoot,
+			NotPointer: true,
+			Element: &gas.E {
+				Tag: config.ItemTag,
+				Attrs: map[string]string {
+					"class": config.GroupClass+"-item",
+					"draggable": "true",
+					"data-group": config.Group,
+					"data-field": config.FieldName,
+					"data-is-item": "true",
+					"data-dnd-index": fmt.Sprintf("%d", i),
+				},
+			},
+			Hooks: gas.Hooks {
+				Mounted: func() error {
+					_el := childRoot.C.Element.BEElement().(*dom.Element)
+
+					_el.AddEventListener("dragstart", func(event dom.Event) {
+						_el := event.Target()
+		
+						indexS := _el.GetAttribute("data-dnd-index").String()
+						index, err := strconv.Atoi(indexS)
+						if err != nil {
+							root.c.WarnError(err)
+							return
+						}
+		
+						if config.Events.Started != nil {
+							block, err := config.Events.Started(StartedEvent{
+								Index: index,
+								Body:  web.ToUniteObject(event),
+							})
+							if err != nil {
+								root.c.WarnError(err)
+								return
+							}
+		
+							if block {
+								event.PreventDefault()
+								return
+							}
+						}
+		
+						dataTransfer := event.JSValue().Get("dataTransfer")
+						dataTransfer.Call("setData", "group", config.Group)
+						dataTransfer.Call("setData", "field", config.FieldName)
+						dataTransfer.Call("setData", "index", indexS)
+						dataTransfer.Call("setData", "uuid", _el.GetAttribute("data-i").String())
+						dataTransfer.Call("setData", "group-id", _el.ParentElement().GetAttribute("data-dnd-group-id").String())
+						dataTransfer.Set("effectAllowed", "move")
+		
+						_p := _el.ParentElement()
+						for _, _x := range dom.Doc.QuerySelectorAll("." + config.GroupClass) {
+							if _x.JSValue() == _p.JSValue() {
+								continue
+							}
+		
+							_x.ClassList().Add(config.GroupClass + "-receiving")
+						}
+						_p.ClassList().Add(config.GroupClass + "-dragging")
+		
+						_preview := _el.Clone()
+						_preview.ClassList().Add(config.PreviewClass)
+						_preview.Style().Set("position", "absolute")
+						_preview.Style().Set("top", "0")
+						_preview.Style().Set("left", "0")
+						_preview.Style().Set("zIndex", "-1")
+		
+						_el.AppendChild(_preview)
+						dataTransfer.Call("setDragImage", _preview.JSValue(), event.JSValue().Get("offsetX").Int()+10, event.JSValue().Get("offsetY").Int()+10)
+		
+						go func() {
+							time.Sleep(50 * time.Millisecond)
+							_preview.ParentElement().RemoveChild(_preview)
+						}()
+		
+						event.Target().ClassList().Add(config.PlaceholderClass)
+					})
+
+					_el.AddEventListener("drop", func(e dom.Event) {
+						err := dropEvent(_el, config, e)
+						if err != nil {
+							dom.ConsoleError(err.Error())
+							return
+						}
+					})
+
+					_el.AddEventListener("dragend", func(event dom.Event) {
+						_el := event.Target()
+		
+						_el.ClassList().Remove(config.PlaceholderClass)
+		
+						indexS := _el.GetAttribute("data-dnd-index").String()
+						oldIndex, err := strconv.Atoi(indexS)
+						if err != nil {
+							root.c.WarnError(err)
+							return
+						}
+		
+						newIndex := func() int {
+							_childes := childRoot.C.Element.Parent.BEElement().(*dom.Element).ChildNodes()
+							elID := _el.GetAttribute("data-i").String()
+							for i, el := range _childes {
+								if el.GetAttribute("data-i").String() == elID {
+									return i
+								}
+							}
+							return -1
+						}()
+		
+						if newIndex == -1 && config.Events.Removed != nil {
+							root.c.WarnError(config.Events.Removed(RemovedEvent{OldIndex: oldIndex, Body: web.ToUniteObject(event)}))
+						}
+		
+						if config.Events.Moved != nil {
+							root.c.WarnError(config.Events.Moved(StandardEvent{OldIndex: oldIndex, NewIndex: newIndex, Body: web.ToUniteObject(event)}))
+						}
+					})
+
+					return nil
+				},
+			},
+		}
+		childRoot.C = childC
+
+		body = append(body, childC.Init())
 	}
 
 	if e.Slots != nil && e.Slots["footer"] != nil {
@@ -353,7 +360,7 @@ func(root *dndListEl) Render() []interface{} {
 	return body
 }
 
-func dropEvent(_x *dom.Element, config Config, event dom.Event) error {
+func dropEvent(_x *dom.Element, config *Config, event dom.Event) error {
 	dataTransfer := event.JSValue().Get("dataTransfer")
 	if dataTransfer.Type() == sjs.TypeNull {
 		return nil
@@ -380,7 +387,7 @@ func dropEvent(_x *dom.Element, config Config, event dom.Event) error {
 		return nil
 	}
 
-	if dataTransfer.Call("getData", "group").String() != config.Group { //|| // if groups are not same
+	if dataTransfer.Call("getData", "group").String() != config.Group { // if groups are not same
 		return movePlaceholder(config, oldIndex, _aGroup, _placeholder)
 	}
 
@@ -408,14 +415,13 @@ func dropEvent(_x *dom.Element, config Config, event dom.Event) error {
 		Body: web.ToUniteObject(event),
 	}
 
-	data := config.This.Get(config.FieldName).([]interface{})
+	data := config.This.DndListGet(config.FieldName)
 	if aField == config.FieldName {
 		if newIndex == oldIndex {
 			return nil
 		}
 
-		// replace in this array
-		config.This.SetValue(config.FieldName, replaceInArr(data, newIndex, oldIndex))
+		config.This.DndListSet(config.FieldName, replaceInArr(data, newIndex, oldIndex))
 
 		if config.Events.Updated != nil {
 			err := config.Events.Updated(eData)
@@ -424,12 +430,13 @@ func dropEvent(_x *dom.Element, config Config, event dom.Event) error {
 			}
 		}
 	} else {
-		aData := config.This.Get(aField).([]interface{})
+		aData := config.This.DndListGet(aField)
+		if oldIndex > len(aData)-1 {
+			return fmt.Errorf("invalid old dnd list. oldIndex: %d, array: %v", oldIndex, aData)
+		}
 
-		config.This.Set(map[string]interface{}{
-			config.FieldName: append(data[:newIndex], append([]interface{}{aData[oldIndex]}, data[newIndex:]...)...),
-			aField:           append(aData[:oldIndex], aData[oldIndex+1:]...),
-		})
+		config.This.DndListSet(config.FieldName, addToArr(data, aData[oldIndex], newIndex))
+		config.This.DndListSet(aField, removeFromArr(aData, oldIndex))
 
 		if config.Events.Added != nil {
 			err := config.Events.Added(eData)
@@ -446,10 +453,12 @@ func dropEvent(_x *dom.Element, config Config, event dom.Event) error {
 		}
 	}
 
+	config.This.DndListUpdate()
+
 	return nil
 }
 
-func getPlaceholderNode(config Config) *dom.Element {
+func getPlaceholderNode(config *Config) *dom.Element {
 	return dom.GetDocument().QuerySelector("." + config.PlaceholderClass)
 }
 
@@ -463,6 +472,14 @@ func addToArr(arr []interface{}, el interface{}, i int) []interface{} {
 	arr[i] = el
 
 	return arr
+}
+
+func removeFromArr(arr []interface{}, i int) []interface{} {
+	if i > len(arr)-1 {
+		return arr
+	}
+
+	return append(arr[:i], arr[i+1:]...)
 }
 
 func replaceInArr(arr []interface{}, new, old int) []interface{} {
@@ -481,7 +498,7 @@ func elementIndex(_el *dom.Element) int {
 	return -1
 }
 
-func movePlaceholder(config Config, oldIndex int, _aGroup, _placeholder *dom.Element) error {
+func movePlaceholder(config *Config, oldIndex int, _aGroup, _placeholder *dom.Element) error {
 	err := func() error {
 		childNodes := _aGroup.ChildNodes()
 		if len(childNodes) == oldIndex {
@@ -511,10 +528,4 @@ func movePlaceholder(config Config, oldIndex int, _aGroup, _placeholder *dom.Ele
 	}
 
 	return nil
-}
-
-func warnError(err error) {
-	if err != nil {
-		dom.ConsoleError(err.Error())
-	}
 }

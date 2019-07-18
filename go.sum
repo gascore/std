@@ -8,6 +8,8 @@ github.com/gascore/gas v0.0.0-20190612053126-40808b6ceae1 h1:lq7mxyX57wwsYNssjpa
 github.com/gascore/gas v0.0.0-20190612053126-40808b6ceae1/go.mod h1:Ie9T1NhbD719W7WdsLryTZiC/LBZ+o6e3vsy5r8GH54=
 github.com/gascore/gas v0.0.0-20190712065822-f56f1412e91e h1:y8HvwznCXYTvoT30obK6yF25MlZiT4Rs8dv0RN4vGnk=
 github.com/gascore/gas v0.0.0-20190712065822-f56f1412e91e/go.mod h1:VIJq6dMrwKffC7Arrft9KPY6f3SPCK1FN08l07RBgAw=
+github.com/gascore/gas v0.0.0-20190718093852-c504dec168d6 h1:gcB6GFo6govyasmrYnSwfAyCHflzziQTIZIK/As0fSA=
+github.com/gascore/gas v0.0.0-20190718093852-c504dec168d6/go.mod h1:VIJq6dMrwKffC7Arrft9KPY6f3SPCK1FN08l07RBgAw=
 github.com/gorilla/websocket v1.4.0/go.mod h1:E7qHFY5m1UJ88s3WnNqhKjPHQ0heANvMoAMk2YaljkQ=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
