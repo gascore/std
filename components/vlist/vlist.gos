@@ -174,7 +174,7 @@ func (root *vlistEl) genItems() *gas.E {
 			Tag: root.config.ItemsWrapperTag,
 			Binds: map[string]gas.Bind{
 				"style": func() string {
-					commonStyles = "top: 0;left: 0;width: 100%;height: 100%;position: absolute;"
+					commonStyles := "top: 0;left: 0;width: 100%;height: 100%;position: absolute;"
 					
 					var dFlex string
 					if !root.config.Direction {
