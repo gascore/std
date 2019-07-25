@@ -1,0 +1,72 @@
+package tree
+
+import (
+    "github.com/gascore/gas"
+)
+
+type itemEl struct {
+    c *gas.C
+
+    isHidden bool
+
+    item *Item
+    config *Config
+}
+
+func (root *itemEl) onClick() {
+    root.isHidden = !root.isHidden
+
+    if root.config.OnItemClick != nil {
+        root.c.WarnError(root.config.OnItemClick(root.item))
+    }
+
+    go root.c.Update()
+}
+
+func (root *itemEl) Render() []interface{} {
+    return $html{
+        <div g-if="root.item.IsDirectory" class="tree-item tree-directory-item">
+            <div class="tree-item-header" @click="root.onClick()">
+                <button class="tree-item-header__hide-btn m(0,6px,0,0) bd(0) p(0) bg(inherit) d(inline-block)">
+                    <span g-if="root.isHidden" g-html="root.config.ArrowUp"></span>
+                    <span g-else g-html="root.config.ArrowDown"></span>
+                </button>
+                <div g-if="root.item.Renderer == nil" class="tree-item-header__name d(inline-block) cur(pointer)">
+                    {{ root.item.Name }}
+                </div>
+                <div g-else class="tree-item-header__byRenderer">
+                    <e run="root.item.Renderer(root.item)"></e>
+                </div>
+            </div>
+            <ul g-if="!root.isHidden" class="p(0,0,0,12px) m(0) list(none)">
+                <li g-for="_, nItem := range root.item.Childes">
+                    <e run="renderItem(nItem, root.config)"></e>
+                </li>
+            </ul>
+        </div>
+        <div g-else class="tree-item" @click="root.onClick()">
+            <span g-if="root.item.Renderer == nil" class="tree-item_name">
+                {{ root.item.Name }}
+            </span>
+            <div g-else class="tree-item_byRenderer">
+                <e run="root.item.Renderer(root.item)"></e>
+            </div>
+        </div>
+    }$
+}
+
+func renderItem(item *Item, config *Config) *gas.Element {
+    root := &itemEl {
+        item: item,
+        config: config,
+        isHidden: true,
+    }
+
+    c := &gas.C{
+        NotPointer: true,
+        Root:root,
+    }
+    root.c = c
+
+    return c.Init()
+}

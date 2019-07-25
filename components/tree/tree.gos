@@ -1,0 +1,95 @@
+package tree
+
+import (
+	"github.com/gascore/dom"
+	"github.com/gascore/gas"
+)
+
+type Config struct {
+	Name 		    string
+	CanBeHidden bool
+	Items       []*Item
+
+  OnItemClick func(item *Item) error
+
+  ArrowUp   string
+  ArrowDown string
+}
+
+type Item struct {
+	IsDirectory bool
+	Childes     []*Item // if is directory
+
+	Name     string
+	Renderer func(*Item) *gas.E // if null render item name
+
+	Data interface{} // Your custom data
+}
+
+type treeEl struct {
+  c *gas.C
+
+  isHidden bool
+  config *Config
+
+  items []*gas.E
+  isStable bool
+}
+
+func (root *treeEl) Render() []interface{} {
+  return $html{
+    <div class="tree">
+        <div class="tree-header d(flex)">
+            <b>
+                {{ root.config.Name }}
+            </b>
+            <button class="tree-hide-btn m(0,0,0,auto) bd(0) p(0) bg(inherit)" @click="root.toggleIsHidden()" g-if="root.config.CanBeHidden">
+                <span g-if="root.isHidden">
+                    Show
+                </span>
+                <span g-else>
+                    Hide
+                </span>
+            </button>
+        </div>
+        <ul class="tree-items p(0,0,0,12px) m(0) list(none)" g-if="!root.isHidden">
+            <li g-for="_, nItem := range root.config.Items">
+                <e run="renderItem(nItem, root.config)"></e>
+            </li>
+        </ul>
+    </div>
+  }$
+}
+
+func (root *treeEl) toggleIsHidden() {
+  if !root.config.CanBeHidden {
+    return
+  }
+
+  root.isHidden = !root.isHidden
+  root.c.Update()
+}
+
+func GetTree(config *Config) *gas.E {
+	if config.Items == nil {
+		dom.ConsoleError("invalid items")
+		return nil
+	}
+
+  if len(config.ArrowUp) == 0 {
+    config.ArrowUp = `<i class="icon-arrow-up icon"></i>`
+  }
+
+  if len(config.ArrowDown) == 0 {
+    config.ArrowDown = `<i class="icon-arrow-down icon"></i>`
+  }
+
+  root := &treeEl{
+    config: config,
+  }
+
+  c := &gas.C {Root: root}
+  root.c = c
+
+  return c.Init()
+}

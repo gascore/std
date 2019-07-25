@@ -94,6 +94,17 @@ func GetList(config *Config, renderer Renderer) *gas.E {
 	return c.Init()
 }
 
+func (root *vlistEl) Render() []interface{} {
+	return $html{
+	<div class="vlist w(100%) h(100%) ovx(auto) ovy(auto) pos(relative)" @scroll="root.onScroll()">
+        <div
+             class="vlist-padding w(1px) h(1px) op(0)"
+             :style="fmt.Sprintf(`%s: %dpx;`, root.config.directionV, root.scrollHeight)"></div>
+        <e run="root.genItems()"></e>
+    </div>
+	}$
+}
+
 func (root *vlistEl) onScroll() {
 	dom.GetWindow().RequestAnimationFrame(func(timeStep js.Value) {
 		var err error
@@ -163,11 +174,13 @@ func (root *vlistEl) genItems() *gas.E {
 			Tag: root.config.ItemsWrapperTag,
 			Binds: map[string]gas.Bind{
 				"style": func() string {
+					commonStyles = "top: 0;left: 0;width: 100%;height: 100%;position: absolute;"
+					
 					var dFlex string
 					if !root.config.Direction {
 						dFlex = "display: flex;"
 					}
-					return fmt.Sprintf(`transform: %s(%dpx);%s`, root.config.directionTransform, root.topPadding, dFlex)
+					return fmt.Sprintf(`%s transform: %s(%dpx);%s`, commonStyles, root.config.directionTransform, root.topPadding, dFlex)
 				},
 			},
 			Attrs: map[string]string{
