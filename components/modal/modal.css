@@ -1,0 +1,47 @@
+.modal-window {
+    display: none;
+}
+
+.modal-window-active {
+    align-items: center;
+    bottom: 0;
+    justify-content: center;
+    left: 0;
+    opacity: 0;
+    overflow: hidden;
+    padding: .4rem;
+    position: fixed;
+    right: 0;
+    top: 0;
+    display: flex;
+    opacity: 1;
+    z-index: 400;
+}
+
+.modal-window_overlay {
+    bottom: 0;
+    display: block;
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
+    cursor: pointer;
+}
+
+.modal-window_container {
+    background: #fff;
+    border-radius: .6rem;
+    box-shadow: rgba(125, 128, 147, 0.23) 0px 3px 11px 0px;
+    transition: box-shadow .5s;
+    display: flex;
+    width: 100%;
+    animation: slide-down .2s ease 1;
+    z-index: 1;
+    overflow: auto;
+    flex-direction: column;
+}
+
+.modal-window_container:hovered,
+.modal-window_container:focused {
+    box-shadow: rgba(125, 128, 147, 0.46) 0px 3px 11px 0px;
+}

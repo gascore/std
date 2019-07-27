@@ -1,0 +1,56 @@
+.tree .tree-header {
+    display: flex;
+}
+
+.tree .tree-header .tree-hide-btn {
+    margin: 0 0 0 auto;
+    bottom: 0;
+    padding: 0;
+    background: inherit;
+}
+
+.tree .tree-items {
+    padding: 0;
+    margin: 0;
+    list-style-type: none;
+}
+
+.tree .tree-items .tree-item {
+    margin-left: 0;
+}
+
+.tree .tree-items .tree-item .tree-item-header {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.tree .tree-items .tree-item .tree-item-header .tree-item-header__hide-btn {
+    border: none;
+    padding: 0;
+    background: inherit;
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    margin-right: 4px;
+}
+
+.tree .tree-items .tree-item .tree-item-header .tree-item-header_name {
+    height: 24px;
+}
+
+.tree .tree-items .tree-item .tree-item-subs {
+    padding: 0;
+    margin: 0;
+    list-style-type: none;
+}
+
+.tree .tree-items .tree-item .tree-item-subs .tree-item-subs_item {
+    margin-left: 32px;
+}
+
+.tree .tree-items .tree-item_name-only {
+    margin-left: 28px;
+}

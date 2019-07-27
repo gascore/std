@@ -95,14 +95,7 @@ func GetList(config *Config, renderer Renderer) *gas.E {
 }
 
 func (root *vlistEl) Render() []interface{} {
-	return $html{
-	<div class="vlist" @scroll="root.onScroll()">
-        <div
-             class="vlist-padding"
-             :style="fmt.Sprintf(`%s: %dpx;`, root.config.directionV, root.scrollHeight)"></div>
-        <e run="root.genItems()"></e>
-    </div>
-	}$
+	return gas.CL(gas.NE(&gas.E{Tag:"div", Handlers: map[string]gas.Handler{"scroll": func(e gas.Object) {root.onScroll()},},Attrs: map[string]string{"class": "vlist",},},gas.NE(&gas.E{Tag:"div", Binds: map[string]gas.Bind{"style": func() string { return (fmt.Sprintf(`%s: %dpx;`, root.config.directionV, root.scrollHeight))},},Attrs: map[string]string{"class": "vlist-padding",},},),root.genItems(),),)
 }
 
 func (root *vlistEl) onScroll() {

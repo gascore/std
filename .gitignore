@@ -1,7 +1,3 @@
-components/**/*_gas_e.go
-
-components/.sass-cache
-
 *.txt
 
 # ignore app.js files

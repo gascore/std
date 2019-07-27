@@ -59,28 +59,28 @@ type treeEl struct {
 }
 
 func (root *treeEl) Render() []interface{} {
-  return $html{
-    <div class="tree">
-        <div class="tree-header">
-            <b>
-                {{ root.config.Name }}
-            </b>
-            <button class="tree-hide-btn" @click="root.toggleIsHidden()" g-if="root.config.CanBeHidden">
-                <span g-if="root.isHidden">
+  return gas.CL(gas.NE(&gas.E{Tag:"div", Attrs: map[string]string{"class": "tree",},},gas.NE(&gas.E{Tag:"div", Attrs: map[string]string{"class": "tree-header",},},gas.NE(&gas.E{Tag:"b", },``, root.config.Name , ),func()interface{} {
+if root.config.CanBeHidden {
+	return gas.NE(&gas.E{Tag:"button", Handlers: map[string]gas.Handler{"click": func(e gas.Object) {root.toggleIsHidden()},},Attrs: map[string]string{"class": "tree-hide-btn",},},func()interface{} {
+if root.isHidden {
+	return gas.NE(&gas.E{Tag:"span", },`
                     Show
-                </span>
-                <span g-else>
+                `,)
+} else {
+	return gas.NE(&gas.E{Tag:"span", },`
                     Hide
-                </span>
-            </button>
-        </div>
-        <ul class="tree-items" g-if="!root.isHidden">
-            <li g-for="_, nItem := range root.config.Items">
-                <e run="renderItem(nItem, root.config)"></e>
-            </li>
-        </ul>
-    </div>
-  }$
+                `,)
+}
+return nil
+}(),)
+}
+return nil
+}(),),func()interface{} {
+if !root.isHidden {
+	return gas.NE(&gas.E{Tag:"ul", Attrs: map[string]string{"class": "tree-items",},},func()[]interface{}{var c4556198280788642803 []interface{}; for _, nItem := range root.config.Items { c4556198280788642803 = append(c4556198280788642803, gas.NE(&gas.E{Tag:"li", },renderItem(nItem, root.config),)) }; return c4556198280788642803}(),)
+}
+return nil
+}(),),)
 }
 
 func (root *treeEl) toggleIsHidden() {
