@@ -1,38 +1,36 @@
 package router
 
 import (
-	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/gascore/dom"
 	"github.com/gascore/dom/js"
 	"github.com/gascore/gas"
-	sjs "syscall/js"
 )
 
 // ChangeRouteEvent name for custom event
 const ChangeRouteEvent = "changeroute"
 
-// renderedPaths dummy cache for rendered paths 
-var renderedPaths = make(map[string]string)
-
-type RouteElement func(info RouteInfo) *gas.Element
-
 // Route information about route
 type Route struct {
-	Name      string
-	Element   RouteElement
+	Name string
+	Path string
+
+	Element func(info *RouteInfo) *gas.Element
+
 	Exact     bool
 	Sensitive bool
 
-	Redirect        string
-	RedirectParams  map[string]string // Route.RP != nil || Route.RQ != nil => Route.Redirect is route name
-	RedirectQueries map[string]string
+	Redirect string
 
-	Path    string
-	ArrPath []string
+	RedirectName    string // redirecting to route name
+	RedirectParams  map[string]string // pararms for rederecting to route
+	RedirectQueries map[string]string // queries for rederecting to route
+
+	Before, After Middleware
+
+	Childes []Route
 }
 
 // Ctx router context
@@ -40,6 +38,10 @@ type Ctx struct {
 	Routes   []Route
 	Settings Settings
 	This     *routerComponent
+
+	Before, After func(to, from *RouteInfo) error
+
+	renderedPaths map[string]string
 }
 
 // Settings router settings
@@ -58,8 +60,34 @@ type Settings struct {
 	MaxRouteParams int
 }
 
+// RouteInfo info about current route for router
+type RouteInfo struct {
+	Name string
+	URL  string
+
+	Params      map[string]string // /links/:foo => {"foo": "bar"}
+	QueryParams map[string]string // /links?foo=bar => {"foo": "bar"}
+
+	Route Route
+
+	Ctx *Ctx
+}
+
+type MiddlewareInfo struct {
+	To, From *RouteInfo
+
+	Change Change
+	ChangeDynamic ChangeDynamic
+}
+
+type Middleware func(info *MiddlewareInfo) (stop bool, err error)
+
+type Change func(path string, replace bool)
+
+type ChangeDynamic func(name string, params, queries map[string]string, replace bool)
+
 // Init initialize router ctx
-func (ctx *Ctx) Init() *Ctx {
+func (ctx *Ctx) Init() {
 	if ctx.Settings.NotFound == nil {
 		ctx.Settings.NotFound = gas.NE(&gas.E{}, "404. Page not found")
 	}
@@ -76,22 +104,93 @@ func (ctx *Ctx) Init() *Ctx {
 		ctx.Settings.MaxRouteParams = 64
 	}
 
+	ctx.renderedPaths = make(map[string]string)
+
+	var newRoutes []Route
 	for _, route := range ctx.Routes {
-		if len(route.Redirect) == 0 {
-			continue
+		if len(route.RedirectName) != 0 {
+			if route.RedirectParams == nil {
+				route.RedirectParams = make(map[string]string)
+			}
+
+			if route.RedirectQueries == nil {
+				route.RedirectQueries = make(map[string]string)
+			}
 		}
 
-		if route.RedirectParams == nil {
-			route.RedirectParams = make(map[string]string)
+		newRoutes = append(newRoutes, decomposeRouteChildes(route)...)
+	}
+	ctx.Routes = newRoutes
+}
+
+func decomposeRouteChildes(route Route) []Route {
+	var newRoutes []Route
+	for _, c := range route.Childes {
+		if route.Before != nil {
+			if c.Before == nil {
+				c.Before = route.Before
+			} else {
+				cBefore := c.Before
+				c.Before = func(info *MiddlewareInfo) (bool, error) {
+					stop, err := route.Before(info)
+					if err != nil {
+						return stop, err
+					}
+
+					if stop {
+						return stop, nil
+					}
+
+					stop, err = cBefore(info)
+					if err != nil {
+						return stop, err
+					}
+
+					return stop, nil
+				}
+			}
 		}
 
-		if route.RedirectQueries == nil {
-			route.RedirectQueries = make(map[string]string)
+		if route.After != nil {
+			if c.After == nil {
+				c.After = route.After
+			} else {
+				cAfter := c.After
+				c.After = func(info *MiddlewareInfo) (bool, error) {
+					stop, err := route.After(info)
+					if err != nil {
+						return stop, err
+					}
+
+					if stop {
+						return stop, nil
+					}
+
+					stop, err = cAfter(info)
+					if err != nil {
+						return stop, err
+					}
+
+					return stop, nil
+				}
+			}
 		}
+
+		c.Path = route.Path + c.Path
+
+		if len(c.Childes) != 0 {
+			newRoutes = append(newRoutes, decomposeRouteChildes(c)...)
+		}
+
+		newRoutes = append(newRoutes, c)
 	}
 
-	return ctx
+	route.Childes = []Route{}
+	newRoutes = append(newRoutes, route)
+
+	return newRoutes
 }
+
 
 // GetRouter return gas router element
 func (ctx *Ctx) GetRouter() *gas.Element {
@@ -101,11 +200,35 @@ func (ctx *Ctx) GetRouter() *gas.Element {
 
 	c := &gas.C{
 		NotPointer: true,
-		Root: root,
+		Root:       root,
 		Hooks: gas.Hooks{
 			Mounted: func() error {
 				root.updateEvent = event(func(e dom.Event) {
-					root.c.Update() 
+					from := root.lastRouteInfo
+
+					root.c.Update()
+
+					to := root.lastRouteInfo
+					if to.Route.After != nil {
+						_, err := to.Route.After(&MiddlewareInfo{
+							To: to, 
+							From: from, 
+							Change: ctx.CustomPush, 
+							ChangeDynamic: ctx.CustomPushDynamic,
+						})
+						if err != nil {
+							root.c.ConsoleError(err.Error())
+							return
+						}
+					}
+
+					if ctx.After != nil {
+						err := ctx.After(to, from)
+						if err != nil {
+							root.c.ConsoleError(err.Error())
+							return
+						}
+					}
 				})
 
 				windowAddEventListener("popstate", root.updateEvent)
@@ -127,45 +250,120 @@ func (ctx *Ctx) GetRouter() *gas.Element {
 }
 
 type routerComponent struct {
-	c *gas.C
+	c   *gas.C
 	ctx *Ctx
 
-	lastItem    *gas.Element
-	lastRoute   string
-	updateEvent js.Func
+	lastRouteInfo *RouteInfo
+	lastItem      *gas.Element
+	lastRoute     string
+	updateEvent   js.Func
 }
 
-func(root *routerComponent) Render() []interface{} {
-	ctx := root.ctx
-	if !strings.HasPrefix(ctx.getPath(), ctx.Settings.BaseName) {
-		ctx.ChangeRoute("/", true)
+func (root *routerComponent) Render() []interface{} {
+	if !strings.HasPrefix(root.ctx.getPath(), root.ctx.Settings.BaseName) {
+		root.ctx.ChangeRoute("/", true)
 	}
 
-	currentPath := strings.TrimPrefix(ctx.getPath(), ctx.Settings.BaseName)
+	currentPath := strings.TrimPrefix(root.ctx.getPath(), root.ctx.Settings.BaseName)
 	if currentPath == "" {
 		currentPath = "/"
 	}
 
-	ctx.This = root
-
-	return gas.CL(ctx.findRoute(currentPath))
-}
-
-func wrapRouteInfo(el *gas.E, path string) *gas.E {
-	return gas.NE(
-		&gas.E{
-			Attrs: map[string]string{
-				"data-path": path,
-				"id":        "gas-router_route-wraper",
+	return gas.CL(
+		gas.NE(
+			&gas.E{
+				Attrs: map[string]string{
+					"data-path": currentPath,
+					"id":        "gas-router_route-wraper",
+				},
 			},
-		},
-		el,
-	) 
+			root.findRoute(currentPath),
+		),
+	)
 }
 
-// ChangeRoute change current route
-func (i RouteInfo) ChangeRoute(path string, replace bool) {
-	i.Ctx.ChangeRoute(path, replace)
+func (root *routerComponent) findRoute(currentPath string) *gas.Element {
+	ctx := root.ctx
+	if currentPath == root.lastRoute {
+		return root.lastItem
+	}
+
+	for _, route := range ctx.Routes {
+		routeIsFits, params, queries, err := ctx.matchPath(currentPath, route)
+		if err != nil {
+			root.c.ConsoleError(fmt.Sprintf("error in router: %s", err.Error()))
+			return nil
+		}
+
+		if !routeIsFits {
+			continue
+		}
+
+		to := &RouteInfo{
+			Name: route.Name,
+			URL:  currentPath,
+
+			Params:      params,
+			QueryParams: queries,
+
+			Route: route,
+
+			Ctx: ctx,
+		}
+
+		if ctx.Before != nil {
+			err := ctx.Before(to, root.lastRouteInfo)
+			if err != nil {
+				root.c.ConsoleError(err.Error())
+				return root.lastItem // don't update route
+			}
+		}
+
+		if route.Before != nil {
+			var newPath string
+			newReplace := true
+
+			stop, err := route.Before(&MiddlewareInfo{
+				To: to, 
+				From: root.lastRouteInfo, 
+				Change: func(path string, replace bool) {
+					newPath = path
+					newReplace = replace
+				}, 
+				ChangeDynamic: func(name string, params, queries map[string]string, replace bool) {
+					newPath = ctx.fillPath(name, params, queries)
+					newReplace = replace
+				},
+			})
+			if err != nil {
+				root.c.ConsoleError(err.Error())
+			}
+
+			if len(newPath) != 0 && stop {
+				ctx.ChangeRoute(newPath, newReplace)
+				return root.findRoute(newPath)
+			}
+		}
+
+		if len(route.Redirect) != 0 {
+			ctx.ChangeRoute(route.Redirect, true)
+			return root.findRoute(route.Redirect)
+		}
+
+		if len(route.RedirectName) != 0 {
+			path := ctx.fillPath(route.RedirectName, route.RedirectParams, route.RedirectQueries)
+			ctx.ChangeRoute(path, true)
+			return root.findRoute(path)
+		}
+
+		root.lastRouteInfo = to
+		root.lastRoute = currentPath
+		root.lastItem = route.Element(to)
+
+		return root.lastItem
+	}
+
+	return ctx.Settings.NotFound
 }
 
 // ChangeRoute change current route
@@ -183,216 +381,10 @@ func (ctx *Ctx) ChangeRoute(path string, replace bool) {
 		dom.GetWindow().GetHistory().Call("replaceState", "", "", path)
 	} else {
 		dom.GetWindow().GetHistory().Call("pushState", "", "", path)
-
-		c  := ctx.This.c
-		el := c.Element
-
-		_el, ok := el.BEElement().(*dom.Element)
-		if !ok || _el == nil {
-			c.ConsoleError("invalid ctx.This")
-			return
-		}
-
-		if len(el.Childes) == 0 {
-			c.ConsoleError("invalid ctx.This Childes")
-			return
-		}
-
-		routeWrap, ok := el.Childes[0].(*gas.E)
-		if !ok {
-			c.ConsoleError("invalid gas-router route wrapper type")
-			return
-		}
-
-		routeWrap.Attrs["data-path"] = path
-
-		elChildes := _el.ChildNodes()
-		if len(elChildes) == 0 {
-			c.ConsoleError("invalid _el ChildNodes")
-			return
-		}
-
-		elChildes[0].SetAttribute("data-path", path)
 	}
-}
-
-// ChangeRouteDynamic change current route with params and queries
-func (i RouteInfo) ChangeRouteDynamic(name string, params, queries map[string]string, replace bool) {
-	i.Ctx.ChangeRouteDynamic(name, params, queries, replace)
 }
 
 // ChangeRouteDynamic change current route with params and queries
 func (ctx *Ctx) ChangeRouteDynamic(name string, params, queries map[string]string, replace bool) {
 	ctx.ChangeRoute(ctx.fillPath(name, params, queries), replace)
-}
-
-func (ctx *Ctx) findRoute(currentPath string) *gas.Element {
-	root := ctx.This
-	c    := root.c
-
-	if currentPath == root.lastRoute {
-		return wrapRouteInfo(root.lastItem, currentPath)
-	}
-
-	for _, route := range ctx.Routes {
-		routeIsFits, params, queries, err := ctx.matchPath(currentPath, route)
-		if err != nil {
-			c.ConsoleError("error in router: ", err.Error())
-			return nil
-		}
-
-		if !routeIsFits {
-			continue
-		}
-
-		if len(route.Redirect) != 0 {
-			var path string
-			if route.RedirectParams == nil && route.RedirectQueries == nil {
-				path = route.Redirect
-			} else {
-				path = ctx.fillPath(route.Redirect, route.RedirectParams, route.RedirectQueries)
-			}
-
-			ctx.ChangeRoute(path, true)
-			return ctx.findRoute(path)
-		}
-
-		newEl := route.Element(
-			RouteInfo{
-				Name: route.Name,
-				URL:  currentPath,
-
-				Params:      params,
-				QueryParams: queries,
-
-				Route: route,
-
-				Ctx: ctx,
-			},
-		)
-
-		root.lastRoute = currentPath
-		root.lastItem  = newEl
-
-		return wrapRouteInfo(newEl, currentPath)
-	}
-
-	return wrapRouteInfo(gas.NE(&gas.E{Tag:"h1"}, ctx.Settings.NotFound), currentPath)
-}
-
-func (ctx *Ctx) getPath() string {
-	if ctx.Settings.HashMode {
-		return dom.GetWindow().GetLocation().Get("hash").String()
-	}
-	
-	return dom.GetWindow().GetLocationPath()
-}
-
-func (ctx *Ctx) matchPath(currentPath string, route Route) (bool, map[string]string, map[string]string, error) {
-	params, queries := make(map[string]string), make(map[string]string)
-	if route.Exact && currentPath == route.Path {
-		return true, params, queries, nil
-	}
-
-	if strings.HasPrefix(currentPath, route.Path) && !route.Exact {
-		return true, params, queries, nil
-	}
-
-	// need to cache it
-	var path string
-	if len(renderedPaths[route.Path]) != 0 {
-		path = renderedPaths[route.Path]
-	} else {
-		path = renderPath(route.Path, ctx)
-		renderedPaths[route.Path] = path
-	}
-
-	r, err := regexp.Compile(path)
-	if err != nil {
-		return false, nil, nil, errors.New("invalid path name")
-	}
-
-	matches := r.FindStringSubmatch(currentPath)
-	if len(matches) <= 1 {
-		return false, nil, nil, nil
-	}
-
-	names := r.SubexpNames()
-	for i, match := range matches {
-		if i == 0 {
-			continue
-		}
-
-		params[names[i]] = match
-	}
-
-	splitPath := strings.Split(dom.GetWindow().GetLocation().Get("href").String(), "?")
-	if len(splitPath) > 1 { // some.com/wow?foo=bar&some=wow  =>  ["some.com/wow", "foo=bar&some=wow"]
-		for _, query := range strings.Split(splitPath[1], "&") {
-			if len(query) == 0 {
-				continue
-			}
-
-			splitQuery := strings.Split(query, "=")
-			if len(splitQuery) != 2 {
-				ctx.This.c.WarnError(fmt.Errorf("invalid query parametr: %s", query))
-				continue
-			}
-
-			queries[splitQuery[0]] = splitQuery[1]
-		}
-	}
-
-	return true, params, queries, nil
-}
-
-func renderPath(a string, ctx *Ctx) string {
-	path := a
-	for x := 0; x < 64; x++ {
-		p1, name, p2 := splitPath(path)
-		if len(name) == 0 {
-			return p1
-		}
-
-		val := fmt.Sprintf(`(?P<%s>[^/?=]*)`, name)
-		path = p1 + val + p2
-	}
-
-	ctx.This.c.ConsoleError(fmt.Sprintf("invalid path: %s", a))
-	return a
-}
-
-func splitPath(path string) (string, string, string) {
-	index := strings.Index(path, ":")
-	if index == -1 {
-		return path, "", ""
-	}
-
-	slashIndex := strings.Index(path[index:], "/")
-	if slashIndex == -1 {
-		slashIndex = len(path)
-	}
-
-	return path[:index], path[index+1 : slashIndex], path[slashIndex:]
-}
-
-// SupportHistory return ture if browser support "HTML5 History API"
-func SupportHistory() bool {
-	return dom.GetWindow().GetHistory().Type().String() != "undefined" &&
-		dom.GetWindow().GetHistory().Get("pushState").Type().String() != "undefined" &&
-		dom.GetWindow().JSValue().Get("CustomEvent").Type() == sjs.TypeFunction
-}
-
-func event(h func(event dom.Event)) js.Func {
-	return js.NewEventCallback(func(v js.Value) {
-		h(dom.ConvertEvent(v))
-	})
-}
-
-func windowAddEventListener(eType string, f js.Func) {
-	dom.GetWindow().JSValue().Call("addEventListener", eType, f)
-}
-
-func windowRemoveEventListener(eType string, f js.Func) {
-	dom.GetWindow().JSValue().Call("removeEventListener", eType, f)
 }
