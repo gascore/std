@@ -24,7 +24,7 @@ type Route struct {
 
 	Redirect string
 
-	RedirectName    string // redirecting to route name
+	RedirectName    string            // redirecting to route name
 	RedirectParams  map[string]string // pararms for rederecting to route
 	RedirectQueries map[string]string // queries for rederecting to route
 
@@ -76,7 +76,7 @@ type RouteInfo struct {
 type MiddlewareInfo struct {
 	To, From *RouteInfo
 
-	Change Change
+	Change        Change
 	ChangeDynamic ChangeDynamic
 }
 
@@ -191,7 +191,6 @@ func decomposeRouteChildes(route Route) []Route {
 	return newRoutes
 }
 
-
 // GetRouter return gas router element
 func (ctx *Ctx) GetRouter() *gas.Element {
 	root := &routerComponent{
@@ -211,9 +210,9 @@ func (ctx *Ctx) GetRouter() *gas.Element {
 					to := root.lastRouteInfo
 					if to.Route.After != nil {
 						_, err := to.Route.After(&MiddlewareInfo{
-							To: to, 
-							From: from, 
-							Change: ctx.CustomPush, 
+							To:            to,
+							From:          from,
+							Change:        ctx.CustomPush,
 							ChangeDynamic: ctx.CustomPushDynamic,
 						})
 						if err != nil {
@@ -245,6 +244,8 @@ func (ctx *Ctx) GetRouter() *gas.Element {
 		},
 	}
 	root.c = c
+
+	ctx.This = root
 
 	return c.Init()
 }
@@ -324,12 +325,12 @@ func (root *routerComponent) findRoute(currentPath string) *gas.Element {
 			newReplace := true
 
 			stop, err := route.Before(&MiddlewareInfo{
-				To: to, 
-				From: root.lastRouteInfo, 
+				To:   to,
+				From: root.lastRouteInfo,
 				Change: func(path string, replace bool) {
 					newPath = path
 					newReplace = replace
-				}, 
+				},
 				ChangeDynamic: func(name string, params, queries map[string]string, replace bool) {
 					newPath = ctx.fillPath(name, params, queries)
 					newReplace = replace
@@ -368,19 +369,19 @@ func (root *routerComponent) findRoute(currentPath string) *gas.Element {
 
 // ChangeRoute change current route
 func (ctx *Ctx) ChangeRoute(path string, replace bool) {
-	path = ctx.Settings.BaseName + path
+	fullPath := ctx.Settings.BaseName + path
 
 	if ctx.Settings.ForceRefresh {
 		dom.GetWindow().JSValue().Set(
 			"location",
-			dom.GetWindow().GetLocation().Get("origin").String()+path)
+			dom.GetWindow().GetLocation().Get("origin").String()+fullPath)
 		return
 	}
 
 	if replace {
-		dom.GetWindow().GetHistory().Call("replaceState", "", "", path)
+		dom.GetWindow().GetHistory().Call("replaceState", "", "", fullPath)
 	} else {
-		dom.GetWindow().GetHistory().Call("pushState", "", "", path)
+		dom.GetWindow().GetHistory().Call("pushState", "", "", fullPath)
 	}
 }
 
