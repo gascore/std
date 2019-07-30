@@ -77,8 +77,10 @@ func GetList(config *Config, renderer Renderer) *gas.E {
 
 	c := &gas.C{
 		Element: &gas.E{
-			Attrs: map[string]string{
-				"style": "height: 100%; width: 100%",
+			Attrs: func() map[string]string {
+				return map[string]string{
+					"style": "height: 100%; width: 100%",
+				}
 			},
 		},
 		Root: root,
@@ -95,7 +97,7 @@ func GetList(config *Config, renderer Renderer) *gas.E {
 }
 
 func (root *vlistEl) Render() []interface{} {
-	return gas.CL(gas.NE(&gas.E{Tag:"div", Handlers: map[string]gas.Handler{"scroll": func(e gas.Object) {root.onScroll()},},Attrs: map[string]string{"class": "vlist",},},gas.NE(&gas.E{Tag:"div", Binds: map[string]gas.Bind{"style": func() string { return (fmt.Sprintf(`%s: %dpx;`, root.config.directionV, root.scrollHeight))},},Attrs: map[string]string{"class": "vlist-padding",},},),root.genItems(),),)
+	return gas.CL(gas.NE(&gas.E{Tag:"div", Handlers: map[string]gas.Handler{"scroll": func(e gas.Event) {root.onScroll()},},Attrs: func() map[string]string { return map[string]string{"class": "vlist",} },},gas.NE(&gas.E{Tag:"div", Attrs: func() map[string]string { return map[string]string{"class": "vlist-padding","style": fmt.Sprintf(`%s: %dpx;`, root.config.directionV, root.scrollHeight),} },},),root.genItems(),),)
 }
 
 func (root *vlistEl) onScroll() {
@@ -165,17 +167,17 @@ func (root *vlistEl) genItems() *gas.E {
 	return gas.NE(
 		&gas.E{
 			Tag: root.config.ItemsWrapperTag,
-			Binds: map[string]gas.Bind{
-				"style": func() string {
-					var dFlex string
-					if !root.config.Direction {
-						dFlex = "display: flex;"
-					}
-					return fmt.Sprintf(`transform: %s(%dpx);%s`, root.config.directionTransform, root.topPadding, dFlex)
-				},
-			},
-			Attrs: map[string]string{
-				"class": "vlist-content",
+			Attrs: func() map[string]string {
+				return map[string]string{
+					"class": "vlist-content",
+					"style": func() string {
+						var dFlex string
+						if !root.config.Direction {
+							dFlex = "display: flex;"
+						}
+						return fmt.Sprintf(`transform: %s(%dpx);%s`, root.config.directionTransform, root.topPadding, dFlex)
+					}(),
+				}
 			},
 		},
 		items,

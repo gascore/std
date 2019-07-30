@@ -40,14 +40,17 @@ func (ctx *Ctx) ReplaceDynamic(name string, params, queries map[string]string) {
 	ctx.CustomPushDynamic(name, params, queries, true)
 }
 
-func (ctx Ctx) link(path string, push func(gas.Object), e gas.External) *gas.Element {
+func (ctx Ctx) link(path string, push func(gas.Event), e gas.External) *gas.Element {
+	var attrs map[string]string
 	if e.Attrs == nil {
-		e.Attrs = make(map[string]string)
+		attrs = make(map[string]string)
+	} else {
+		attrs = e.Attrs()
 	}
 	
-	e.Attrs["href"] = ctx.Settings.BaseName + path
+	attrs["href"] = ctx.Settings.BaseName + path
 
-	beforePush := func(event gas.Object) {
+	beforePush := func(event gas.Event) {
 		push(event)
 		event.Call("preventDefault")
 	}
@@ -55,7 +58,9 @@ func (ctx Ctx) link(path string, push func(gas.Object), e gas.External) *gas.Ele
 	return gas.NE(
 		&gas.E{
 			Tag: "a",
-			Attrs: e.Attrs,
+			Attrs: func() map[string]string {
+				return attrs
+			},
 			Handlers: map[string]gas.Handler {
 				"click":    beforePush,
 				"keyup.13": beforePush,
@@ -69,7 +74,7 @@ func (ctx Ctx) link(path string, push func(gas.Object), e gas.External) *gas.Ele
 func (ctx *Ctx) Link(to string, e gas.External) *gas.Element {
 	return ctx.link(
 		to,
-		func(e gas.Object) {
+		func(e gas.Event) {
 			ctx.Push(to)
 		},
 		e)
@@ -79,7 +84,7 @@ func (ctx *Ctx) Link(to string, e gas.External) *gas.Element {
 func (ctx *Ctx) LinkWithParams(name string, params, queries map[string]string, e gas.External) *gas.Element {
 	return ctx.link(
 		ctx.fillPath(name, params, queries),
-		func(e gas.Object) {
+		func(e gas.Event) {
 			ctx.PushDynamic(name, params, queries)
 		},
 		e)

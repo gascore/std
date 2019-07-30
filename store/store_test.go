@@ -88,8 +88,10 @@ func TestNew(t *testing.T) {
 	registeredComponent := s.RegisterComponent(gas.NC(
 		&gas.C{
 			Tag: "p",
-			Attrs: map[string]string{
-				"class": "component",
+			Attrs: func() map[string]string {
+				return map[string]string{
+					"class": "component",
+				}
 			},
 			RC: gas.GetEmptyRenderCore(),
 		},
@@ -164,8 +166,10 @@ func TestIsRoot(t *testing.T) {
 	c := gas.NC(
 		&gas.C{
 			Tag: "p",
-			Attrs: map[string]string{
-				"class": "component",
+			Attrs: func() map[string]string {
+				return map[string]string{
+					"class": "component",
+				}
 			},
 		},
 		func(this *gas.Component) []interface{} {

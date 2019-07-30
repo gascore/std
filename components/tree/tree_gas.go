@@ -59,9 +59,9 @@ type treeEl struct {
 }
 
 func (root *treeEl) Render() []interface{} {
-  return gas.CL(gas.NE(&gas.E{Tag:"div", Attrs: map[string]string{"class": "tree",},},gas.NE(&gas.E{Tag:"div", Attrs: map[string]string{"class": "tree-header",},},gas.NE(&gas.E{Tag:"b", },``, root.config.Name , ),func()interface{} {
+  return gas.CL(gas.NE(&gas.E{Tag:"div", Attrs: func() map[string]string { return map[string]string{"class": "tree",} },},gas.NE(&gas.E{Tag:"div", Attrs: func() map[string]string { return map[string]string{"class": "tree-header",} },},gas.NE(&gas.E{Tag:"b", },``, root.config.Name , ),func()interface{} {
 if root.config.CanBeHidden {
-	return gas.NE(&gas.E{Tag:"button", Handlers: map[string]gas.Handler{"click": func(e gas.Object) {root.toggleIsHidden()},},Attrs: map[string]string{"class": "tree-hide-btn",},},func()interface{} {
+	return gas.NE(&gas.E{Tag:"button", Handlers: map[string]gas.Handler{"click": func(e gas.Event) {root.toggleIsHidden()},},Attrs: func() map[string]string { return map[string]string{"class": "tree-hide-btn",} },},func()interface{} {
 if root.isHidden {
 	return gas.NE(&gas.E{Tag:"span", },`
                     Show
@@ -77,7 +77,7 @@ return nil
 return nil
 }(),),func()interface{} {
 if !root.isHidden {
-	return gas.NE(&gas.E{Tag:"ul", Attrs: map[string]string{"class": "tree-items",},},func()[]interface{}{var c4556198280788642803 []interface{}; for _, nItem := range root.config.Items { c4556198280788642803 = append(c4556198280788642803, gas.NE(&gas.E{Tag:"li", },renderItem(nItem, root.config),)) }; return c4556198280788642803}(),)
+	return gas.NE(&gas.E{Tag:"ul", Attrs: func() map[string]string { return map[string]string{"class": "tree-items",} },},func()[]interface{}{var c5997890410202299643 []interface{}; for _, nItem := range root.config.Items { c5997890410202299643 = append(c5997890410202299643, gas.NE(&gas.E{Tag:"li", },renderItem(nItem, root.config),)) }; return c5997890410202299643}(),)
 }
 return nil
 }(),),)

@@ -123,8 +123,10 @@ func GetLayout(config *Config) gas.DynamicElement {
 	c := &gas.C {
 		Root: root,
 		Element: &gas.E{
-			Attrs: map[string]string{
-				"class": fmt.Sprintf("%s %s-%s", config.LayoutClass, config.LayoutClass, config.typeString),
+			Attrs: func() map[string]string {
+				return map[string]string{
+					"class": fmt.Sprintf("%s %s-%s", config.LayoutClass, config.LayoutClass, config.typeString),
+				}
 			},
 		},
 	}
@@ -165,12 +167,16 @@ func (root *layoutEl) Render() []interface{} {
 			return nil
 		}
 
+		thisSize := root.sizes[i].current
+
 		childes = append(childes, gas.NE(
 			&gas.E{
-				Attrs: map[string]string{
-					"class":  config.LayoutClass + "-item",
-					"style":  fmt.Sprintf("%s: calc(%f%s - %fpx); %s: 100%s;", config.orientation, root.sizes[i].current, "%", config.byGuttersOffset, config.subOrientation, "%"),
-					"data-i": fmt.Sprintf("%d", i),
+				Attrs: func() map[string]string {
+					return map[string]string{
+						"class":  config.LayoutClass + "-item",
+						"style":  fmt.Sprintf("%s: calc(%f%s - %fpx); %s: 100%s;", config.orientation, thisSize, "%", config.byGuttersOffset, config.subOrientation, "%"),
+						"data-i": fmt.Sprintf("%d", i),
+					}
 				},
 			},
 			childE,
@@ -228,9 +234,11 @@ func gutter(sizesFub sizesFubInterface, config *Config, first, second Element) *
 		Root: root,
 		Element: &gas.E{
 			Tag: "div",
-			Attrs: map[string]string {
-				"class": fmt.Sprintf("%s %s-%s", config.GutterClass, config.GutterClass, config.typeString),
-				"style": fmt.Sprintf("cursor: %s; %s: %dpx", cursorType, config.orientation, config.GutterSize),
+			Attrs: func() map[string]string {
+				return map[string]string {
+					"class": fmt.Sprintf("%s %s-%s", config.GutterClass, config.GutterClass, config.typeString),
+					"style": fmt.Sprintf("cursor: %s; %s: %dpx", cursorType, config.orientation, config.GutterSize),
+				}
 			},
 		},
 		Hooks: gas.Hooks{

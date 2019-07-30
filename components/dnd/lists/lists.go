@@ -66,9 +66,11 @@ func Lists(config *Config) gas.DynamicElement {
 		Root: root,
 		Element: &gas.E{
 			Tag: config.Tag,
-			Attrs: map[string]string{
-				"data-dnd-field": config.FieldName,
-				"class":          config.GroupClass,
+			Attrs: func() map[string]string {
+				return map[string]string{
+					"data-dnd-field": config.FieldName,
+					"class":          config.GroupClass,
+				}
 			},
 		},
 		Hooks: gas.Hooks{
@@ -229,13 +231,15 @@ func(root *dndListEl) Render() []interface{} {
 			NotPointer: true,
 			Element: &gas.E {
 				Tag: config.ItemTag,
-				Attrs: map[string]string {
-					"class": config.GroupClass+"-item",
-					"draggable": "true",
-					"data-group": config.Group,
-					"data-field": config.FieldName,
-					"data-is-item": "true",
-					"data-dnd-index": fmt.Sprintf("%d", i),
+				Attrs: func() map[string]string {
+					return map[string]string {
+						"class": config.GroupClass+"-item",
+						"draggable": "true",
+						"data-group": config.Group,
+						"data-field": config.FieldName,
+						"data-is-item": "true",
+						"data-dnd-index": fmt.Sprintf("%d", i),
+					}
 				},
 			},
 			Hooks: gas.Hooks {

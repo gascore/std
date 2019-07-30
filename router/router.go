@@ -273,9 +273,11 @@ func (root *routerComponent) Render() []interface{} {
 	return gas.CL(
 		gas.NE(
 			&gas.E{
-				Attrs: map[string]string{
-					"data-path": currentPath,
-					"id":        "gas-router_route-wraper",
+				Attrs: func() map[string]string {
+					return map[string]string{
+						"data-path": currentPath,
+						"id":        "gas-router_route-wraper",
+					}
 				},
 			},
 			root.findRoute(currentPath),

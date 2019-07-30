@@ -77,8 +77,10 @@ func GetList(config *Config, renderer Renderer) *gas.E {
 
 	c := &gas.C{
 		Element: &gas.E{
-			Attrs: map[string]string{
-				"style": "height: 100%; width: 100%",
+			Attrs: func() map[string]string {
+				return map[string]string{
+					"style": "height: 100%; width: 100%",
+				}
 			},
 		},
 		Root: root,
@@ -172,17 +174,17 @@ func (root *vlistEl) genItems() *gas.E {
 	return gas.NE(
 		&gas.E{
 			Tag: root.config.ItemsWrapperTag,
-			Binds: map[string]gas.Bind{
-				"style": func() string {
-					var dFlex string
-					if !root.config.Direction {
-						dFlex = "display: flex;"
-					}
-					return fmt.Sprintf(`transform: %s(%dpx);%s`, root.config.directionTransform, root.topPadding, dFlex)
-				},
-			},
-			Attrs: map[string]string{
-				"class": "vlist-content",
+			Attrs: func() map[string]string {
+				return map[string]string{
+					"class": "vlist-content",
+					"style": func() string {
+						var dFlex string
+						if !root.config.Direction {
+							dFlex = "display: flex;"
+						}
+						return fmt.Sprintf(`transform: %s(%dpx);%s`, root.config.directionTransform, root.topPadding, dFlex)
+					}(),
+				}
 			},
 		},
 		items,

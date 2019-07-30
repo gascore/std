@@ -74,8 +74,10 @@ func GetDNDFree(config *Config) gas.DynamicElement {
 		Root: root,
 		Element: &gas.E{
 			Tag: config.Tag,
-			Attrs: map[string]string{
-				"class": config.Class + "-wrap",
+			Attrs: func() map[string]string {
+				return map[string]string{
+					"class": config.Class + "-wrap",
+				}
 			},
 		},
 		Hooks: gas.Hooks{
@@ -288,17 +290,17 @@ func (root *dndEl) Render() []interface{} {
 		ElementIsImportant: true,
 		Element: &gas.E{
 			UUID: root.childUUID,
-			Binds: map[string]gas.Bind{
-				"style": func() string {
-					return fmt.Sprintf("transform: translate3d(%dpx, %dpx, 0px)", root.offsetX, root.offsetY)
-				},
-				"class": func() string {
-					var isActiveClass string
-					if root.isActive {
-						isActiveClass = root.config.Class + "-active"
-					}
-					return root.config.Class + " " + isActiveClass
-				},
+			Attrs: func() map[string]string {
+				return map[string]string {
+					"style": fmt.Sprintf("transform: translate3d(%dpx, %dpx, 0px)", root.offsetX, root.offsetY),
+					"class": func() string {
+						var isActiveClass string
+						if root.isActive {
+							isActiveClass = root.config.Class + "-active"
+						}
+						return root.config.Class + " " + isActiveClass
+					}(),
+				}
 			},
 		},
 		Hooks: gas.Hooks{
