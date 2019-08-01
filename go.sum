@@ -44,6 +44,8 @@ github.com/gascore/gas v0.0.0-20190729134409-88d0bb373830 h1:WX3aKgtS7C2olUMI2PC
 github.com/gascore/gas v0.0.0-20190729134409-88d0bb373830/go.mod h1:Ie9T1NhbD719W7WdsLryTZiC/LBZ+o6e3vsy5r8GH54=
 github.com/gascore/gas v0.0.0-20190730170112-c1c949483d11 h1:tsFreLGnbVxO7VHdywPCmjpushZQ6FUKyX6joHLi/BU=
 github.com/gascore/gas v0.0.0-20190730170112-c1c949483d11/go.mod h1:Ie9T1NhbD719W7WdsLryTZiC/LBZ+o6e3vsy5r8GH54=
+github.com/gascore/gas v0.0.0-20190801114453-c0253f205cf4 h1:v8YP/czXx+yibIt6MhDyfRLoFp/hxOFwYVkXad+K81I=
+github.com/gascore/gas v0.0.0-20190801114453-c0253f205cf4/go.mod h1:Ie9T1NhbD719W7WdsLryTZiC/LBZ+o6e3vsy5r8GH54=
 github.com/google/go-cmp v0.2.0/go.mod h1:oXzfMopK8JAjlY9xF4vHSVASa0yLyX7SntLO5aqRK0M=
 github.com/gorilla/websocket v1.4.0/go.mod h1:E7qHFY5m1UJ88s3WnNqhKjPHQ0heANvMoAMk2YaljkQ=
 github.com/gotestyourself/gotestyourself v2.2.0+incompatible/go.mod h1:zZKM6oeNM8k+FRljX1mnzVYeS8wiGgQyvST1/GafPbY=

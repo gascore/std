@@ -361,7 +361,9 @@ func (root *routerComponent) findRoute(currentPath string) *gas.Element {
 
 		root.lastRouteInfo = to
 		root.lastRoute = currentPath
+
 		root.lastItem = route.Element(to)
+		root.lastItem.IsPointer = false
 
 		return root.lastItem
 	}

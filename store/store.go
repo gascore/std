@@ -220,7 +220,7 @@ func (s *Store) isRoot(c *gas.Component) (bool, error) {
 	}
 
 	for _, sub := range s.subs {
-		changed, err := gas.Changed(sub, parent)
+		changed, _, err := gas.Changed(sub, parent)
 		if err != nil {
 			return false, err
 		}
