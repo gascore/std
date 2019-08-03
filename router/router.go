@@ -54,8 +54,7 @@ type Settings struct {
 	GetUserConfirmation func() bool
 	ForceRefresh        bool
 
-	Redirect *gas.Element
-	NotFound *gas.Element
+	Redirect, NotFound func() *gas.Element
 
 	MaxRouteParams int
 }
@@ -89,11 +88,15 @@ type ChangeDynamic func(name string, params, queries map[string]string, replace 
 // Init initialize router ctx
 func (ctx *Ctx) Init() {
 	if ctx.Settings.NotFound == nil {
-		ctx.Settings.NotFound = gas.NE(&gas.E{}, "404. Page not found")
+		ctx.Settings.NotFound = func() *gas.E {
+			return gas.NE(&gas.E{}, "404. Page not found")
+		}
 	}
 
 	if ctx.Settings.Redirect == nil {
-		ctx.Settings.Redirect = gas.NE(&gas.E{}, "Redirecting")
+		ctx.Settings.Redirect = func() *gas.E {
+			return gas.NE(&gas.E{}, "Redirecting")
+		}
 	}
 
 	if ctx.Settings.HashMode {
@@ -368,7 +371,7 @@ func (root *routerComponent) findRoute(currentPath string) *gas.Element {
 		return root.lastItem
 	}
 
-	return ctx.Settings.NotFound
+	return ctx.Settings.NotFound()
 }
 
 // ChangeRoute change current route

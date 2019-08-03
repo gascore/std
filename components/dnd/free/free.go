@@ -230,6 +230,8 @@ func GetDNDFree(config *Config) gas.DynamicElement {
 
 					go root.c.Update()
 				})
+				
+				fmt.Println("add", root.moveEvent)
 
 				addEvent(dom.Doc, "mousemove", root.moveEvent)
 				addEvent(dom.Doc, "mousedown", root.startEvent)
@@ -238,6 +240,7 @@ func GetDNDFree(config *Config) gas.DynamicElement {
 				return nil
 			},
 			BeforeDestroy: func() error {
+				fmt.Println("remove", root.moveEvent)
 				removeEvent(dom.Doc, "mousemove", root.moveEvent)
 				removeEvent(dom.Doc, "mousedown", root.startEvent)
 				removeEvent(dom.Doc, "mouseup", root.endEvent)
@@ -291,7 +294,7 @@ func (root *dndEl) Render() []interface{} {
 		Element: &gas.E{
 			UUID: root.childUUID,
 			Attrs: func() map[string]string {
-				return map[string]string {
+				return map[string]string{
 					"style": fmt.Sprintf("transform: translate3d(%dpx, %dpx, 0px)", root.offsetX, root.offsetY),
 					"class": func() string {
 						var isActiveClass string

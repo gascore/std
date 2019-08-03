@@ -224,24 +224,28 @@ func(root *dndListEl) Render() []interface{} {
 			return nil
 		}
 
-		childRoot := &gas.EmptyRoot{Element:item}
+		childRoot := &gas.EmptyRoot{
+			Element:gas.NE(
+				&gas.E{
+					Tag: config.ItemTag,
+					Attrs: func() map[string]string {
+						return map[string]string {
+							"class": config.GroupClass+"-item",
+							"draggable": "true",
+							"data-group": config.Group,
+							"data-field": config.FieldName,
+							"data-is-item": "true",
+							"data-dnd-index": fmt.Sprintf("%d", i),
+						}
+					},
+				},
+				item,
+			),
+		}
 
 		childC := &gas.C{
 			Root: childRoot,
 			NotPointer: true,
-			Element: &gas.E {
-				Tag: config.ItemTag,
-				Attrs: func() map[string]string {
-					return map[string]string {
-						"class": config.GroupClass+"-item",
-						"draggable": "true",
-						"data-group": config.Group,
-						"data-field": config.FieldName,
-						"data-is-item": "true",
-						"data-dnd-index": fmt.Sprintf("%d", i),
-					}
-				},
-			},
 			Hooks: gas.Hooks {
 				Mounted: func() error {
 					_el := childRoot.C.Element.BEElement().(*dom.Element)

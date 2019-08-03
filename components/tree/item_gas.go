@@ -35,7 +35,7 @@ if item.Renderer == nil {
 return nil
 }(),),),func()interface{} {
 if item.IsOpen {
-	return gas.NE(&gas.E{Tag:"ul", Attrs: func() map[string]string { return map[string]string{"class": "tree-item-subs",} },},func()[]interface{}{var c8303200877963563899 []interface{}; for _, nItem := range item.Childes { c8303200877963563899 = append(c8303200877963563899, gas.NE(&gas.E{Tag:"li", Attrs: func() map[string]string { return map[string]string{"class": "tree-item-subs_item",} },},renderItem(nItem, config),)) }; return c8303200877963563899}(),)
+	return gas.NE(&gas.E{Tag:"ul", Attrs: func() map[string]string { return map[string]string{"class": "tree-item-subs",} },},func()[]interface{}{var c5733517453363483343 []interface{}; for _, nItem := range item.Childes { c5733517453363483343 = append(c5733517453363483343, gas.NE(&gas.E{Tag:"li", Attrs: func() map[string]string { return map[string]string{"class": "tree-item-subs_item",} },},renderItem(nItem, config),)) }; return c5733517453363483343}(),)
 }
 return nil
 }(),)

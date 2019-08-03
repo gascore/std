@@ -106,9 +106,9 @@ func TestNew(t *testing.T) {
 	}
 
 	// Mounted
-	err = gas.CallMountedIfCan(registeredComponent)
+	err = gas.CallMounted(registeredComponent)
 	if err != nil {
-		t.Errorf("unexpected error in RunMountedIfCan: %s", err.Error())
+		t.Errorf("unexpected error in RunMounted: %s", err.Error())
 		return
 	}
 
@@ -140,9 +140,9 @@ func TestNew(t *testing.T) {
 	}
 
 	// BeforeDestroy
-	err = gas.CallBeforeDestroyIfCan(registeredComponent)
+	err = gas.CallBeforeDestroy(registeredComponent)
 	if err != nil {
-		t.Errorf("unexpected error in RunWillDestroyIfCan: %s", err.Error())
+		t.Errorf("unexpected error in RunWillDestroy: %s", err.Error())
 		return
 	}
 
