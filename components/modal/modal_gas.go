@@ -50,7 +50,7 @@ type Modal struct {
 func (root *Modal) Render() []interface{} {
 	return gas.CL(func()interface{} {
 if root.config.IsActive() {
-	return gas.NE(&gas.E{Tag:"div", Attrs: func() map[string]string { return map[string]string{"class": root.modalWindowClass(),} },},gas.NE(&gas.E{Tag:"div", Handlers: map[string]gas.Handler{"click": func(e gas.Event) {root.disable()},},Attrs: func() map[string]string { return map[string]string{"class": root.overlayClasses(),"style": root.overlayStyles,} },},),gas.NE(&gas.E{Tag:"div", Attrs: func() map[string]string { return map[string]string{"class": "modal-window_container","style": root.containerStyles,} },},root.body,),)
+	return gas.NE(&gas.E{Tag:"div", Attrs: func() map[string]string { return map[string]string{"class": root.modalWindowClass(),} },},gas.NE(&gas.E{Tag:"div", Handlers: map[string]gas.Handler{"click": func(e gas.Event) {root.disable()},},Attrs: func() map[string]string { return map[string]string{"style": root.overlayStyles,"class": root.overlayClasses(),} },},),gas.NE(&gas.E{Tag:"div", Attrs: func() map[string]string { return map[string]string{"class": "modal-window_container","style": root.containerStyles,} },},root.body,),)
 }
 return nil
 }(),)
@@ -62,7 +62,7 @@ func (root *Modal) overlayClasses() string {
 		classIsActive = "modal-window_overlay-active"
 	}
 
-	return `modal-window_overlay `+classIsActive
+	return "modal-window_overlay "+classIsActive
 }
 
 func (root *Modal) modalWindowClass() string {

@@ -75,7 +75,7 @@ func (root *treeEl) Render() []interface{} {
             </button>
         </div>
         <ul class="tree-items" g-if="!root.isHidden">
-            <li g-for="_, nItem := range root.config.Items">
+            <li g-for='_, nItem := range root.config.Items'>
                 <e run="renderItem(nItem, root.config)"></e>
             </li>
         </ul>

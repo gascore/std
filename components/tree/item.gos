@@ -34,7 +34,7 @@ func renderItem(item *Item, config *Config) *gas.E {
                 </span>
             </div>
             <ul g-if="item.IsOpen" class="tree-item-subs">
-                <li g-for="_, nItem := range item.Childes" class="tree-item-subs_item">
+                <li g-for='_, nItem := range item.Childes' class="tree-item-subs_item">
                     <e run="renderItem(nItem, config)"></e>
                 </li>
             </ul>

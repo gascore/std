@@ -64,7 +64,7 @@ func (root *Modal) overlayClasses() string {
 		classIsActive = "modal-window_overlay-active"
 	}
 
-	return `modal-window_overlay `+classIsActive
+	return "modal-window_overlay "+classIsActive
 }
 
 func (root *Modal) modalWindowClass() string {

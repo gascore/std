@@ -97,7 +97,7 @@ func GetList(config *Config, renderer Renderer) *gas.E {
 }
 
 func (root *vlistEl) Render() []interface{} {
-	return gas.CL(gas.NE(&gas.E{Tag:"div", Handlers: map[string]gas.Handler{"scroll": func(e gas.Event) {root.onScroll()},},Attrs: func() map[string]string { return map[string]string{"class": "vlist",} },},gas.NE(&gas.E{Tag:"div", Attrs: func() map[string]string { return map[string]string{"class": "vlist-padding","style": fmt.Sprintf(`%s: %dpx;`, root.config.directionV, root.scrollHeight),} },},),root.genItems(),),)
+	return gas.CL(gas.NE(&gas.E{Tag:"div", Handlers: map[string]gas.Handler{"scroll": func(e gas.Event) {root.onScroll()},},Attrs: func() map[string]string { return map[string]string{"class": "vlist",} },},gas.NE(&gas.E{Tag:"div", Attrs: func() map[string]string { return map[string]string{"class": "vlist-padding","style": fmt.Sprintf("%s: %dpx;", root.config.directionV, root.scrollHeight),} },},),root.genItems(),),)
 }
 
 func (root *vlistEl) onScroll() {
@@ -175,7 +175,7 @@ func (root *vlistEl) genItems() *gas.E {
 						if !root.config.Direction {
 							dFlex = "display: flex;"
 						}
-						return fmt.Sprintf(`transform: %s(%dpx);%s`, root.config.directionTransform, root.topPadding, dFlex)
+						return fmt.Sprintf("transform: %s(%dpx);%s", root.config.directionTransform, root.topPadding, dFlex)
 					}(),
 				}
 			},

@@ -101,7 +101,7 @@ func (root *vlistEl) Render() []interface{} {
 	<div class="vlist" @scroll="root.onScroll()">
         <div
              class="vlist-padding"
-             :style="fmt.Sprintf(`%s: %dpx;`, root.config.directionV, root.scrollHeight)"></div>
+             :style='fmt.Sprintf("%s: %dpx;", root.config.directionV, root.scrollHeight)'></div>
         <e run="root.genItems()"></e>
     </div>
 	}$
@@ -182,7 +182,7 @@ func (root *vlistEl) genItems() *gas.E {
 						if !root.config.Direction {
 							dFlex = "display: flex;"
 						}
-						return fmt.Sprintf(`transform: %s(%dpx);%s`, root.config.directionTransform, root.topPadding, dFlex)
+						return fmt.Sprintf("transform: %s(%dpx);%s", root.config.directionTransform, root.topPadding, dFlex)
 					}(),
 				}
 			},

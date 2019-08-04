@@ -77,7 +77,7 @@ return nil
 return nil
 }(),),func()interface{} {
 if !root.isHidden {
-	return gas.NE(&gas.E{Tag:"ul", Attrs: func() map[string]string { return map[string]string{"class": "tree-items",} },},func()[]interface{}{var c9151906802095632046 []interface{}; for _, nItem := range root.config.Items { c9151906802095632046 = append(c9151906802095632046, gas.NE(&gas.E{Tag:"li", },renderItem(nItem, root.config),)) }; return c9151906802095632046}(),)
+	return gas.NE(&gas.E{Tag:"ul", Attrs: func() map[string]string { return map[string]string{"class": "tree-items",} },},func()[]interface{}{var c1062588060101163869 []interface{}; for _, nItem := range root.config.Items { c1062588060101163869 = append(c1062588060101163869, gas.NE(&gas.E{Tag:"li", },renderItem(nItem, root.config),)) }; return c1062588060101163869}(),)
 }
 return nil
 }(),),)
