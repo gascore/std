@@ -41,6 +41,7 @@ type Ctx struct {
 
 	Before, After func(to, from *RouteInfo) error
 
+	notFound *gas.E // rendered user not found page
 	renderedPaths map[string]string
 }
 
@@ -54,7 +55,7 @@ type Settings struct {
 	GetUserConfirmation func() bool
 	ForceRefresh        bool
 
-	Redirect, NotFound func() *gas.Element
+	NotFound func() *gas.Element
 
 	MaxRouteParams int
 }
@@ -88,16 +89,11 @@ type ChangeDynamic func(name string, params, queries map[string]string, replace 
 // Init initialize router ctx
 func (ctx *Ctx) Init() {
 	if ctx.Settings.NotFound == nil {
-		ctx.Settings.NotFound = func() *gas.E {
-			return gas.NE(&gas.E{}, "404. Page not found")
-		}
+		ctx.notFound = gas.NE(&gas.E{}, "404. Page not found")
+	} else {
+		ctx.notFound = ctx.Settings.NotFound()
 	}
-
-	if ctx.Settings.Redirect == nil {
-		ctx.Settings.Redirect = func() *gas.E {
-			return gas.NE(&gas.E{}, "Redirecting")
-		}
-	}
+	ctx.notFound.IsPointer = false
 
 	if ctx.Settings.HashMode {
 		ctx.Settings.BaseName = "#" + ctx.Settings.HashSuffix + ctx.Settings.BaseName
@@ -371,7 +367,7 @@ func (root *routerComponent) findRoute(currentPath string) *gas.Element {
 		return root.lastItem
 	}
 
-	return ctx.Settings.NotFound()
+	return ctx.notFound
 }
 
 // ChangeRoute change current route
