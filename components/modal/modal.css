@@ -26,10 +26,13 @@
     right: 0;
     top: 0;
     cursor: pointer;
+    background: rgba(247,248,249,.75);
+}
+html[data-theme="dark"] .modal-window_overlay {
+    background: rgba(0,0,0,.75);
 }
 
 .modal-window_container {
-    background: #fff;
     border-radius: .6rem;
     box-shadow: rgba(125, 128, 147, 0.23) 0px 3px 11px 0px;
     transition: box-shadow .5s;

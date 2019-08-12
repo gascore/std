@@ -13,7 +13,6 @@ type Config struct {
 	MaxHeight string
 	MaxWidth string
 
-	Background string
 	ClassName string
 
 	DisableEvents bool
@@ -22,10 +21,6 @@ type Config struct {
 func (config *Config) Normalize() {
 	if config.ClassName == "" {
 		config.ClassName = "modal"
-	}
-
-	if config.Background == "" {
-		config.Background = "rgba(247,248,249,.75)"
 	}
 
 	if config.MaxHeight == "" {
@@ -43,14 +38,13 @@ type Modal struct {
 
 	config *Config
 
-	overlayStyles string
 	containerStyles string
 }
 
 func (root *Modal) Render() []interface{} {
 	return gas.CL(func()interface{} {
 if root.config.IsActive() {
-	return gas.NE(&gas.E{Tag:"div", Attrs: func() map[string]string { return map[string]string{"class": root.modalWindowClass(),} },},gas.NE(&gas.E{Tag:"div", Handlers: map[string]gas.Handler{"click": func(e gas.Event) {root.disable()},},Attrs: func() map[string]string { return map[string]string{"style": root.overlayStyles,"class": root.overlayClasses(),} },},),gas.NE(&gas.E{Tag:"div", Attrs: func() map[string]string { return map[string]string{"class": "modal-window_container","style": root.containerStyles,} },},root.body,),)
+	return gas.NE(&gas.E{Tag:"div", Attrs: func() map[string]string { return map[string]string{"class": root.modalWindowClass(),} },},gas.NE(&gas.E{Tag:"div", Handlers: map[string]gas.Handler{"click": func(e gas.Event) {root.disable()},},Attrs: func() map[string]string { return map[string]string{"class": root.overlayClasses(),} },},),gas.NE(&gas.E{Tag:"div", Attrs: func() map[string]string { return map[string]string{"class": "modal-window_container","style": root.containerStyles,} },},root.body,),)
 }
 return nil
 }(),)
@@ -85,7 +79,6 @@ func GetModal(config *Config) gas.DynamicElement {
 
 	root := &Modal{
 		config: config,
-		overlayStyles: fmt.Sprintf("background: %s;", config.Background),
 		containerStyles: fmt.Sprintf("max-height: %s; max-width: %s;", config.MaxHeight, config.MaxWidth),
 	}
 
