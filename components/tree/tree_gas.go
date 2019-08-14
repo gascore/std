@@ -59,28 +59,7 @@ type treeEl struct {
 }
 
 func (root *treeEl) Render() []interface{} {
-  return gas.CL(gas.NE(&gas.E{Tag:"div", Attrs: func() map[string]string { return map[string]string{"class": "tree",} },},gas.NE(&gas.E{Tag:"div", Attrs: func() map[string]string { return map[string]string{"class": "tree-header",} },},gas.NE(&gas.E{Tag:"b", },``, root.config.Name , ),func()interface{} {
-if root.config.CanBeHidden {
-	return gas.NE(&gas.E{Tag:"button", Handlers: map[string]gas.Handler{"click": func(e gas.Event) {root.toggleIsHidden()},},Attrs: func() map[string]string { return map[string]string{"class": "tree-hide-btn",} },},func()interface{} {
-if root.isHidden {
-	return gas.NE(&gas.E{Tag:"span", },`
-                    Show
-                `,)
-} else {
-	return gas.NE(&gas.E{Tag:"span", },`
-                    Hide
-                `,)
-}
-return nil
-}(),)
-}
-return nil
-}(),),func()interface{} {
-if !root.isHidden {
-	return gas.NE(&gas.E{Tag:"ul", Attrs: func() map[string]string { return map[string]string{"class": "tree-items",} },},func()[]interface{}{var c5580923581529442724 []interface{}; for _, nItem := range root.config.Items { c5580923581529442724 = append(c5580923581529442724, gas.NE(&gas.E{Tag:"li", },renderItem(nItem, root.config),)) }; return c5580923581529442724}(),)
-}
-return nil
-}(),),)
+  return gas.CL(gas.NE(&gas.E{Tag:"div", Attrs: func() gas.Map { return gas.Map{"class": "tree",} },},gas.NE(&gas.E{Tag:"div", Attrs: func() gas.Map { return gas.Map{"class": "tree-header",} },},gas.NE(&gas.E{Tag:"b", },``, root.config.Name , ),func()interface{} { if root.config.CanBeHidden { return gas.NE(&gas.E{Tag:"button", Handlers: map[string]gas.Handler{"click": func(e gas.Event) {root.toggleIsHidden()},},Attrs: func() gas.Map { return gas.Map{"class": "tree-hide-btn",} },}, func()interface{} { if root.isHidden { return gas.NE(&gas.E{Tag:"span", },`                    Show                `,) } else { return gas.NE(&gas.E{Tag:"span", },`                    Hide                `,) }; return nil }(),) }; return nil }(),),func()interface{} { if !root.isHidden { return gas.NE(&gas.E{Tag:"ul", Attrs: func() gas.Map { return gas.Map{"class": "tree-items",} },},func()[]interface{}{var c7558839583408935790 []interface{}; for _, nItem := range root.config.Items { c7558839583408935790 = append(c7558839583408935790, gas.NE(&gas.E{Tag:"li", },renderItem(nItem, root.config),)) }; return c7558839583408935790}(),) }; return nil }(),),)
 }
 
 func (root *treeEl) toggleIsHidden() {

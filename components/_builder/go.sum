@@ -5,6 +5,10 @@ github.com/gascore/gasx v0.0.0-20190725085113-35e946d4c0c0 h1:D3hr+yToCHp9YXGxhQ
 github.com/gascore/gasx v0.0.0-20190725085113-35e946d4c0c0/go.mod h1:nR4Ndm/WVJuHRyA31tV8cUNgrrY080UyZpKfSc2M8Co=
 github.com/gascore/gasx v0.0.0-20190727102359-70c0c86c27bd h1:JaFVIBmrCztguSfp4zqpG0k6SS/MRP/X6QBg9xttmL0=
 github.com/gascore/gasx v0.0.0-20190727102359-70c0c86c27bd/go.mod h1:WUCG5uRwVPRb8JHgmWrnvWRMVX4QoJ+3py7uBtIzHGw=
+github.com/gascore/gasx v0.0.0-20190730170202-1b7e5600afab h1:Y4O9FUClG7yUGVCtMl0cHFl0Ir6pyi/y1akI6F207jc=
+github.com/gascore/gasx v0.0.0-20190730170202-1b7e5600afab/go.mod h1:WUCG5uRwVPRb8JHgmWrnvWRMVX4QoJ+3py7uBtIzHGw=
+github.com/gascore/gasx v0.0.0-20190814114534-9588309f61c2 h1:+SeXo7gUkYwxJscU4N/0sLyZ0TEG8OfRPJxdvN5wR08=
+github.com/gascore/gasx v0.0.0-20190814114534-9588309f61c2/go.mod h1:WUCG5uRwVPRb8JHgmWrnvWRMVX4QoJ+3py7uBtIzHGw=
 github.com/json-iterator/go v1.1.5 h1:gL2yXlmiIo4+t+y32d4WGwOjKGYcGOuyrg46vadswDE=
 github.com/json-iterator/go v1.1.5/go.mod h1:+SdeFBvtyEkXs7REEP0seUULqWtbJapLOCVDaaPEHmU=
 github.com/liamylian/jsontime v1.0.1 h1:zM/Dxvu7X0iq9BpM2KMpGsKYEIHYDxf04z0GmcKId44=

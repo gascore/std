@@ -25,8 +25,8 @@ type Route struct {
 	Redirect string
 
 	RedirectName    string            // redirecting to route name
-	RedirectParams  map[string]string // pararms for rederecting to route
-	RedirectQueries map[string]string // queries for rederecting to route
+	RedirectParams  gas.Map // pararms for rederecting to route
+	RedirectQueries gas.Map // queries for rederecting to route
 
 	Before, After Middleware
 
@@ -42,7 +42,7 @@ type Ctx struct {
 	Before, After func(to, from *RouteInfo) error
 
 	notFound *gas.E // rendered user not found page
-	renderedPaths map[string]string
+	renderedPaths gas.Map
 }
 
 // Settings router settings
@@ -65,8 +65,8 @@ type RouteInfo struct {
 	Name string
 	URL  string
 
-	Params      map[string]string // /links/:foo => {"foo": "bar"}
-	QueryParams map[string]string // /links?foo=bar => {"foo": "bar"}
+	Params      gas.Map // /links/:foo => {"foo": "bar"}
+	QueryParams gas.Map // /links?foo=bar => {"foo": "bar"}
 
 	Route Route
 
@@ -84,7 +84,7 @@ type Middleware func(info *MiddlewareInfo) (stop bool, err error)
 
 type Change func(path string, replace bool)
 
-type ChangeDynamic func(name string, params, queries map[string]string, replace bool)
+type ChangeDynamic func(name string, params, queries gas.Map, replace bool)
 
 // Init initialize router ctx
 func (ctx *Ctx) Init() {
@@ -103,17 +103,17 @@ func (ctx *Ctx) Init() {
 		ctx.Settings.MaxRouteParams = 64
 	}
 
-	ctx.renderedPaths = make(map[string]string)
+	ctx.renderedPaths = make(gas.Map)
 
 	var newRoutes []Route
 	for _, route := range ctx.Routes {
 		if len(route.RedirectName) != 0 {
 			if route.RedirectParams == nil {
-				route.RedirectParams = make(map[string]string)
+				route.RedirectParams = make(gas.Map)
 			}
 
 			if route.RedirectQueries == nil {
-				route.RedirectQueries = make(map[string]string)
+				route.RedirectQueries = make(gas.Map)
 			}
 		}
 
@@ -272,8 +272,8 @@ func (root *routerComponent) Render() []interface{} {
 	return gas.CL(
 		gas.NE(
 			&gas.E{
-				Attrs: func() map[string]string {
-					return map[string]string{
+				Attrs: func() gas.Map {
+					return gas.Map{
 						"data-path": currentPath,
 						"id":        "gas-router_route-wraper",
 					}
@@ -332,7 +332,7 @@ func (root *routerComponent) findRoute(currentPath string) *gas.Element {
 					newPath = path
 					newReplace = replace
 				},
-				ChangeDynamic: func(name string, params, queries map[string]string, replace bool) {
+				ChangeDynamic: func(name string, params, queries gas.Map, replace bool) {
 					newPath = ctx.fillPath(name, params, queries)
 					newReplace = replace
 				},
@@ -389,6 +389,6 @@ func (ctx *Ctx) ChangeRoute(path string, replace bool) {
 }
 
 // ChangeRouteDynamic change current route with params and queries
-func (ctx *Ctx) ChangeRouteDynamic(name string, params, queries map[string]string, replace bool) {
+func (ctx *Ctx) ChangeRouteDynamic(name string, params, queries gas.Map, replace bool) {
 	ctx.ChangeRoute(ctx.fillPath(name, params, queries), replace)
 }

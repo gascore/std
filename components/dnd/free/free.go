@@ -74,8 +74,8 @@ func GetDNDFree(config *Config) gas.DynamicElement {
 		Root: root,
 		Element: &gas.E{
 			Tag: config.Tag,
-			Attrs: func() map[string]string {
-				return map[string]string{
+			Attrs: func() gas.Map {
+				return gas.Map{
 					"class": config.Class + "-wrap",
 				}
 			},
@@ -290,8 +290,8 @@ func (root *dndEl) Render() []interface{} {
 		ElementIsImportant: true,
 		Element: &gas.E{
 			UUID: root.childUUID,
-			Attrs: func() map[string]string {
-				return map[string]string{
+			Attrs: func() gas.Map {
+				return gas.Map{
 					"style": fmt.Sprintf("transform: translate3d(%dpx, %dpx, 0px)", root.offsetX, root.offsetY),
 					"class": func() string {
 						var isActiveClass string

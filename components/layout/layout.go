@@ -123,8 +123,8 @@ func GetLayout(config *Config) gas.DynamicElement {
 	c := &gas.C {
 		Root: root,
 		Element: &gas.E{
-			Attrs: func() map[string]string {
-				return map[string]string{
+			Attrs: func() gas.Map {
+				return gas.Map{
 					"class": fmt.Sprintf("%s %s-%s", config.LayoutClass, config.LayoutClass, config.typeString),
 				}
 			},
@@ -171,8 +171,8 @@ func (root *layoutEl) Render() []interface{} {
 
 		childes = append(childes, gas.NE(
 			&gas.E{
-				Attrs: func() map[string]string {
-					return map[string]string{
+				Attrs: func() gas.Map {
+					return gas.Map{
 						"class":  config.LayoutClass + "-item",
 						"style":  fmt.Sprintf("%s: calc(%f%s - %fpx); %s: 100%s;", config.orientation, thisSize, "%", config.byGuttersOffset, config.subOrientation, "%"),
 						"data-i": fmt.Sprintf("%d", i),
@@ -234,8 +234,8 @@ func gutter(sizesFub sizesFubInterface, config *Config, first, second Element) *
 		Root: root,
 		Element: &gas.E{
 			Tag: "div",
-			Attrs: func() map[string]string {
-				return map[string]string {
+			Attrs: func() gas.Map {
+				return gas.Map {
 					"class": fmt.Sprintf("%s %s-%s", config.GutterClass, config.GutterClass, config.typeString),
 					"style": fmt.Sprintf("cursor: %s; %s: %dpx", cursorType, config.orientation, config.GutterSize),
 				}

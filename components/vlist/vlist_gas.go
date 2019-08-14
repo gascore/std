@@ -77,8 +77,8 @@ func GetList(config *Config, renderer Renderer) *gas.E {
 
 	c := &gas.C{
 		Element: &gas.E{
-			Attrs: func() map[string]string {
-				return map[string]string{
+			Attrs: func() gas.Map {
+				return gas.Map{
 					"style": "height: 100%; width: 100%",
 				}
 			},
@@ -97,7 +97,7 @@ func GetList(config *Config, renderer Renderer) *gas.E {
 }
 
 func (root *vlistEl) Render() []interface{} {
-	return gas.CL(gas.NE(&gas.E{Tag:"div", Handlers: map[string]gas.Handler{"scroll": func(e gas.Event) {root.onScroll()},},Attrs: func() map[string]string { return map[string]string{"class": "vlist",} },},gas.NE(&gas.E{Tag:"div", Attrs: func() map[string]string { return map[string]string{"class": "vlist-padding","style": fmt.Sprintf("%s: %dpx;", root.config.directionV, root.scrollHeight),} },},),root.genItems(),),)
+	return gas.CL(gas.NE(&gas.E{Tag:"div", Handlers: map[string]gas.Handler{"scroll": func(e gas.Event) {root.onScroll()},},Attrs: func() gas.Map { return gas.Map{"class": "vlist",} },},gas.NE(&gas.E{Tag:"div", Attrs: func() gas.Map { return gas.Map{"class": "vlist-padding","style": fmt.Sprintf("%s: %dpx;", root.config.directionV, root.scrollHeight),} },},),root.genItems(),),)
 }
 
 func (root *vlistEl) onScroll() {
@@ -167,8 +167,8 @@ func (root *vlistEl) genItems() *gas.E {
 	return gas.NE(
 		&gas.E{
 			Tag: root.config.ItemsWrapperTag,
-			Attrs: func() map[string]string {
-				return map[string]string{
+			Attrs: func() gas.Map {
+				return gas.Map{
 					"class": "vlist-content",
 					"style": func() string {
 						var dFlex string

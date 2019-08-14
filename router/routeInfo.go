@@ -16,7 +16,7 @@ func (ctx *Ctx) CustomPush(path string, replace bool) {
 	dom.GetWindow().DispatchEvent(js.New("Event", ChangeRouteEvent))
 }
 
-func (ctx *Ctx) CustomPushDynamic(name string, params, queries map[string]string, replace bool) {
+func (ctx *Ctx) CustomPushDynamic(name string, params, queries gas.Map, replace bool) {
 	ctx.CustomPush(ctx.fillPath(name, params, queries), replace)
 }
 
@@ -31,19 +31,19 @@ func (ctx *Ctx) Replace(path string) {
 }
 
 // PushDynamic push user to another route with params and queries
-func (ctx *Ctx) PushDynamic(name string, params, queries map[string]string) {
+func (ctx *Ctx) PushDynamic(name string, params, queries gas.Map) {
 	ctx.CustomPushDynamic(name, params, queries, false)
 }
 
 // ReplaceDynamic replace current page with page generated from name, params and queries
-func (ctx *Ctx) ReplaceDynamic(name string, params, queries map[string]string) {
+func (ctx *Ctx) ReplaceDynamic(name string, params, queries gas.Map) {
 	ctx.CustomPushDynamic(name, params, queries, true)
 }
 
 func (ctx Ctx) link(path string, push func(gas.Event), e gas.External) *gas.Element {
-	var attrs map[string]string
+	var attrs gas.Map
 	if e.Attrs == nil {
-		attrs = make(map[string]string)
+		attrs = make(gas.Map)
 	} else {
 		attrs = e.Attrs()
 	}
@@ -58,7 +58,7 @@ func (ctx Ctx) link(path string, push func(gas.Event), e gas.External) *gas.Elem
 	return gas.NE(
 		&gas.E{
 			Tag: "a",
-			Attrs: func() map[string]string {
+			Attrs: func() gas.Map {
 				return attrs
 			},
 			Handlers: map[string]gas.Handler {
@@ -81,7 +81,7 @@ func (ctx *Ctx) Link(to string, e gas.External) *gas.Element {
 }
 
 //LinkWithParams create link to route with queries and params
-func (ctx *Ctx) LinkWithParams(name string, params, queries map[string]string, e gas.External) *gas.Element {
+func (ctx *Ctx) LinkWithParams(name string, params, queries gas.Map, e gas.External) *gas.Element {
 	return ctx.link(
 		ctx.fillPath(name, params, queries),
 		func(e gas.Event) {

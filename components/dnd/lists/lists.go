@@ -66,8 +66,8 @@ func Lists(config *Config) gas.DynamicElement {
 		Root: root,
 		Element: &gas.E{
 			Tag: config.Tag,
-			Attrs: func() map[string]string {
-				return map[string]string{
+			Attrs: func() gas.Map {
+				return gas.Map{
 					"data-dnd-field": config.FieldName,
 					"class":          config.GroupClass,
 				}
@@ -228,8 +228,8 @@ func(root *dndListEl) Render() []interface{} {
 			Element:gas.NE(
 				&gas.E{
 					Tag: config.ItemTag,
-					Attrs: func() map[string]string {
-						return map[string]string {
+					Attrs: func() gas.Map {
+						return gas.Map {
 							"class": config.GroupClass+"-item",
 							"draggable": "true",
 							"data-group": config.Group,

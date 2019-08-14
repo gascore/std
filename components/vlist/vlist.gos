@@ -77,8 +77,8 @@ func GetList(config *Config, renderer Renderer) *gas.E {
 
 	c := &gas.C{
 		Element: &gas.E{
-			Attrs: func() map[string]string {
-				return map[string]string{
+			Attrs: func() gas.Map {
+				return gas.Map{
 					"style": "height: 100%; width: 100%",
 				}
 			},
@@ -174,8 +174,8 @@ func (root *vlistEl) genItems() *gas.E {
 	return gas.NE(
 		&gas.E{
 			Tag: root.config.ItemsWrapperTag,
-			Attrs: func() map[string]string {
-				return map[string]string{
+			Attrs: func() gas.Map {
+				return gas.Map{
 					"class": "vlist-content",
 					"style": func() string {
 						var dFlex string

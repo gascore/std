@@ -1,5 +1,7 @@
 .modal-window {
     display: none;
+    /* fully transperent color */
+    background: rgba(0, 0, 0, 0);
 }
 
 .modal-window-active {
@@ -26,16 +28,20 @@
     right: 0;
     top: 0;
     cursor: pointer;
-    background: rgba(247,248,249,.75);
+    background: rgba(247, 248, 249, .75);
+    overflow-x: hidden;
+    overflow-y: auto;
 }
+
 html[data-theme="dark"] .modal-window_overlay {
-    background: rgba(0,0,0,.75);
+    background: rgba(0, 0, 0, .75);
 }
 
 .modal-window_container {
     border-radius: .6rem;
     box-shadow: rgba(125, 128, 147, 0.23) 0px 3px 11px 0px;
     transition: box-shadow .5s;
+    background-color: var(--main-bg);
     display: flex;
     width: 100%;
     animation: slide-down .2s ease 1;
