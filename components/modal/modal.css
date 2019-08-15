@@ -4,6 +4,17 @@
     background: rgba(0, 0, 0, 0);
 }
 
+.modal-window-hidden {
+    position: absolute;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    height: 1px;
+    width: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+}
+
 .modal-window-active {
     align-items: center;
     bottom: 0;
@@ -50,7 +61,7 @@ html[data-theme="dark"] .modal-window_overlay {
     flex-direction: column;
 }
 
-.modal-window_container:hovered,
-.modal-window_container:focused {
+.modal-window_container:hover,
+.modal-window_container:focus {
     box-shadow: rgba(125, 128, 147, 0.46) 0px 3px 11px 0px;
 }
