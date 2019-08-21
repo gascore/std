@@ -13,6 +13,8 @@ type Config struct {
 	Direction bool // true - vertical, false - horizontal
 	directionV, directionTransform string
 
+	MinSmoother int
+
 	ItemsWrapperTag string // ul, table, dl
 	Padding         int
 	Items           []interface{}
@@ -43,6 +45,10 @@ func (config *Config) normalize() {
 
 	if config.ItemsWrapperTag == "" {
 		config.ItemsWrapperTag = "div"
+	}
+
+	if config.MinSmoother == 0 {
+		config.MinSmoother = 2
 	}
 }
 
@@ -97,7 +103,7 @@ func GetList(config *Config, renderer Renderer) *gas.E {
 }
 
 func (root *vlistEl) Render() []interface{} {
-	return gas.CL(gas.NE(&gas.E{Tag:"div", Handlers: map[string]gas.Handler{"scroll": func(e gas.Event) {root.onScroll()},},Attrs: func() gas.Map { return gas.Map{"class": "vlist",} },},gas.NE(&gas.E{Tag:"div", Attrs: func() gas.Map { return gas.Map{"class": "vlist-padding","style": fmt.Sprintf("%s: %dpx;", root.config.directionV, root.scrollHeight),} },},),root.genItems(),),)
+	return gas.CL(gas.NE(&gas.E{Tag:"div", Handlers: map[string]gas.Handler{"scroll": func(e gas.Event) {root.onScroll() }, },Attrs: func() gas.Map { return gas.Map{"class": "vlist",} },},gas.NE(&gas.E{Tag:"div", Attrs: func() gas.Map { return gas.Map{"class": "vlist-padding","style": fmt.Sprintf("%s: %dpx;", root.config.directionV, root.scrollHeight),} },},),root.genItems(),),)
 }
 
 func (root *vlistEl) onScroll() {
@@ -133,11 +139,16 @@ func (root *vlistEl) calculateItems() ([]interface{}, error) {
 		return []interface{}{}, err
 	}
 
+	smoother := endRaw/10
+	if smoother < root.config.MinSmoother {
+		smoother = root.config.MinSmoother
+	}
+
 	start := scrollTop / root.config.childSize
-	end := start + endRaw
+	end := start + endRaw + smoother
 
 	root.start = start
-	root.topPadding = start*root.config.childSize
+	root.topPadding = start * root.config.childSize
 
 	if root.config.Change != nil {
 		err = root.config.Change(start, end)
@@ -171,11 +182,7 @@ func (root *vlistEl) genItems() *gas.E {
 				return gas.Map{
 					"class": "vlist-content",
 					"style": func() string {
-						var dFlex string
-						if !root.config.Direction {
-							dFlex = "display: flex;"
-						}
-						return fmt.Sprintf("transform: %s(%dpx);%s", root.config.directionTransform, root.topPadding, dFlex)
+						return fmt.Sprintf("transform: %s(%dpx);", root.config.directionTransform, root.topPadding)
 					}(),
 				}
 			},

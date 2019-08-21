@@ -55,6 +55,6 @@ func GetModal(config *Config) gas.DynamicElement {
 	}
 
 	return func(e gas.External) *gas.E {
-		return f.Init(true, func() []interface{} {return gas.CL(gas.NE(&gas.E{Tag:"div", Attrs: func() gas.Map { return gas.Map{"class": modalWindowClass(),} },},gas.NE(&gas.E{Tag:"div", Handlers: map[string]gas.Handler{"click": func(e gas.Event) {disable()},},Attrs: func() gas.Map { return gas.Map{"class": "modal-window_overlay",} },},),gas.NE(&gas.E{Tag:"div", Attrs: func() gas.Map { return gas.Map{"class": "modal-window_container","style": containerStyles,} },},e.Body,),),)})
+		return f.Init(true, func() []interface{} {return gas.CL(gas.NE(&gas.E{Tag:"div", Attrs: func() gas.Map { return gas.Map{"class": modalWindowClass(),} },},gas.NE(&gas.E{Tag:"div", Handlers: map[string]gas.Handler{"click": func(e gas.Event) {disable() }, },Attrs: func() gas.Map { return gas.Map{"class": "modal-window_overlay",} },},),gas.NE(&gas.E{Tag:"div", Attrs: func() gas.Map { return gas.Map{"class": "modal-window_container","style": containerStyles,} },},e.Body,),),)})
 	}
 }
