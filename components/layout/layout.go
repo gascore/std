@@ -462,18 +462,18 @@ func event(f func(event dom.Event) error) js.Func {
 }
 
 func addEvent(e dom.Node, typ string, h js.Func) {
-	e.AddEventListener(typ, h)
+	e.JSValue().Call("addEventListener", typ, h)
 }
 
 func removeEvent(e dom.Node, typ string, h js.Func) {
-	e.RemoveEventListener(typ, h)
+	e.JSValue().Call("removeEventListener", typ, h)
 }
 
 func notJsNull(e sjs.Value) bool {
 	return e.Type() != sjs.TypeUndefined && e.Type() != sjs.TypeNull
 }
 
-func parseP(a sjs.Value) int {
+func parseP(a js.Value) int {
 	b, _ := strconv.Atoi(strings.TrimSuffix(a.String(), "px"))
 	return b
 }
