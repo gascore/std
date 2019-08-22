@@ -245,7 +245,7 @@ func gutter(sizesFub sizesFubInterface, config *Config, first, second Element) *
 			Mounted: func() error {
 				_el := root.c.Element.BEElement().(*dom.Element)
 
-				computedStyles := sjs.Global().Call("getComputedStyle", _el.JSValue())
+				computedStyles := dom.GetComputedStyle(_el)
 				var parentSize interface{}
 				if config.Type {
 					parentSize = _el.ParentElement().ClientHeight() - parseP(computedStyles.Get("paddingTop")) - parseP(computedStyles.Get("paddingBottom"))
@@ -462,11 +462,11 @@ func event(f func(event dom.Event) error) js.Func {
 }
 
 func addEvent(e dom.Node, typ string, h js.Func) {
-	e.JSValue().Call("addEventListener", typ, h)
+	e.AddEventListener(typ, h)
 }
 
 func removeEvent(e dom.Node, typ string, h js.Func) {
-	e.JSValue().Call("removeEventListener", typ, h)
+	e.RemoveEventListener(typ, h)
 }
 
 func notJsNull(e sjs.Value) bool {

@@ -21,7 +21,7 @@ func main() {
 	currentDir, err := os.Getwd()
 	gasx.Must(err)
 
-	files, err := gasx.GasFilesCustomDir(currentDir+"/../", []string{"gos"}, false)
+	files, err := gasx.GasFilesCustomDir(currentDir+"/../", []string{"gos"})
 	gasx.Must(err)
 
 	gasx.Must(builder.ParseFiles(files))
