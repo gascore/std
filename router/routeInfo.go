@@ -1,8 +1,6 @@
 package router
 
 import (
-	"github.com/gascore/dom"
-	"github.com/gascore/dom/js"
 	"github.com/gascore/gas"
 )
 
@@ -13,7 +11,7 @@ func (ctx *Ctx) CustomPush(path string, replace bool) {
 
 	ctx.ChangeRoute(path, replace)
 
-	dom.GetWindow().DispatchEvent(js.New("Event", ChangeRouteEvent))
+	ctx.This.update()
 }
 
 func (ctx *Ctx) CustomPushDynamic(name string, params, queries gas.Map, replace bool) {
@@ -47,7 +45,7 @@ func (ctx Ctx) link(path string, push func(gas.Event), e gas.External) *gas.Elem
 	} else {
 		attrs = e.Attrs()
 	}
-	
+
 	attrs["href"] = ctx.Settings.BaseName + path
 
 	beforePush := func(event gas.Event) {
@@ -61,7 +59,7 @@ func (ctx Ctx) link(path string, push func(gas.Event), e gas.External) *gas.Elem
 			Attrs: func() gas.Map {
 				return attrs
 			},
-			Handlers: map[string]gas.Handler {
+			Handlers: map[string]gas.Handler{
 				"click":    beforePush,
 				"keyup.13": beforePush,
 				"keyup.32": beforePush,

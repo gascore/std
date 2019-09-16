@@ -5,9 +5,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gascore/gas"
+	
 	"github.com/gascore/dom"
 	"github.com/gascore/dom/js"
-	"github.com/gascore/gas"
+
 	sjs "syscall/js"
 )
 
@@ -95,8 +97,8 @@ type Element struct {
 	Index int
 }
 
-// GetLayout return resizable layout
-func GetLayout(config *Config) gas.DynamicElement {
+// Init generate resizable layout component
+func (config Config) Init() gas.DynamicComponent {
 	config.normalize()
 
 	var sizesSum float64 // check sizes sum == 100 && make Size.Start valid
@@ -116,34 +118,25 @@ func GetLayout(config *Config) gas.DynamicElement {
 	}
 
 	root := &layoutEl {
-		config: config,
+		config: &config,
 		sizes: config.Sizes,
 	}
 
 	c := &gas.C {
 		Root: root,
-		Element: &gas.E{
-			Attrs: func() gas.Map {
-				return gas.Map{
-					"class": fmt.Sprintf("%s %s-%s", config.LayoutClass, config.LayoutClass, config.typeString),
-				}
-			},
-		},
+		NotPointer: true,
 	}
 	root.c = c
 
-	el := c.Init()
-	return func(e gas.External) *gas.E {
+	return func(e gas.External) *gas.C {
 		if len(e.Body) != len(config.Sizes) {
-			fmt.Println("body", len(e.Body))
-			fmt.Println("sizes", len(config.Sizes))
 			dom.ConsoleError("not enough Element sizes")
 			return nil
 		}
 
 		root.e = e
 
-		return el
+		return c
 	}
 }
 
@@ -156,14 +149,14 @@ type layoutEl struct {
 	config *Config
 }
 
-func (root *layoutEl) Render() []interface{} {
+func (root *layoutEl) Render() *gas.E {
 	var childes []interface{}
 	config := root.config
 
 	for i, child := range root.e.Body {
-		childE, ok := child.(*gas.E)
+		childE, ok := child.(*gas.Element)
 		if !ok {
-			dom.ConsoleError(fmt.Sprintf("invalid child in layout - child is not element: '%T'", child))
+			dom.ConsoleError(fmt.Sprintf("invalid child in layout - child is not element: '%T' (1)", child))
 			return nil
 		}
 
@@ -175,7 +168,6 @@ func (root *layoutEl) Render() []interface{} {
 					return gas.Map{
 						"class":  config.LayoutClass + "-item",
 						"style":  fmt.Sprintf("%s: calc(%f%s - %fpx); %s: 100%s;", config.orientation, thisSize, "%", config.byGuttersOffset, config.subOrientation, "%"),
-						"data-i": fmt.Sprintf("%d", i),
 					}
 				},
 			},
@@ -183,9 +175,9 @@ func (root *layoutEl) Render() []interface{} {
 		))
 
 		if i != len(root.e.Body)-1 {
-			nextChild, ok := root.e.Body[i+1].(*gas.E)
+			nextChild, ok := root.e.Body[i+1].(*gas.Element)
 			if !ok {
-				dom.ConsoleError(fmt.Sprintf("invalid child in layout - child is not element: '%T'", child))
+				dom.ConsoleError(fmt.Sprintf("invalid child in layout - child is not element: '%T' (2)", root.e.Body[i+1]))
 				return nil
 			}
 
@@ -193,7 +185,16 @@ func (root *layoutEl) Render() []interface{} {
 		}
 	}
 
-	return childes
+	return gas.NE(
+		&gas.E{
+			Attrs: func() gas.Map {
+				return gas.Map{
+					"class": fmt.Sprintf("%s %s-%s", config.LayoutClass, config.LayoutClass, config.typeString),
+				}
+			},
+		},
+		childes...
+	)
 }
 
 func (root *layoutEl) GetSizes() []Size {
@@ -213,34 +214,21 @@ type sizesFubInterface interface{
 type gutterEl struct {
 	c *gas.C
 
+	config *Config
+
 	dragOffset float64
 	dragging   bool
 
 	startEvent, moveEvent, stopEvent js.Func
 }
 
-func gutter(sizesFub sizesFubInterface, config *Config, first, second Element) *gas.Element {
-	var cursorType string
-	if config.Type {
-		cursorType = "ew-resize"
-	} else {
-		cursorType = "row-resize"
-	}
-
+func gutter(sizesFub sizesFubInterface, config *Config, first, second Element) *gas.C {
 	root := &gutterEl{
+		config: config,
 	}
 
 	c := &gas.C{
 		Root: root,
-		Element: &gas.E{
-			Tag: "div",
-			Attrs: func() gas.Map {
-				return gas.Map {
-					"class": fmt.Sprintf("%s %s-%s", config.GutterClass, config.GutterClass, config.typeString),
-					"style": fmt.Sprintf("cursor: %s; %s: %dpx", cursorType, config.orientation, config.GutterSize),
-				}
-			},
-		},
 		Hooks: gas.Hooks{
 			Mounted: func() error {
 				_el := root.c.Element.BEElement().(*dom.Element)
@@ -410,11 +398,30 @@ func gutter(sizesFub sizesFubInterface, config *Config, first, second Element) *
 	}
 	root.c = c
 
-	return c.Init()
+	return c
 }
 
-func (root *gutterEl) Render() []interface{} {
-	return gas.CL()
+func (root *gutterEl) Render() *gas.E {
+	config := root.config
+
+	var cursorType string
+	if config.Type {
+		cursorType = "ew-resize"
+	} else {
+		cursorType = "row-resize"
+	}
+
+	return gas.NE(
+		&gas.E{
+			Tag: "div",
+			Attrs: func() gas.Map {
+				return gas.Map {
+					"class": fmt.Sprintf("%s %s-%s", config.GutterClass, config.GutterClass, config.typeString),
+					"style": fmt.Sprintf("cursor: %s; %s: %dpx", cursorType, config.orientation, config.GutterSize),
+				}
+			},
+		},
+	)
 }
 
 func getSizes(offset float64, _parent *dom.Element, first, second Size, config *Config) (float64, float64) {

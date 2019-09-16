@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/gascore/dom"
-	"github.com/gascore/dom/js"
 	"github.com/gascore/gas"
 )
 
@@ -17,14 +16,14 @@ type Route struct {
 	Name string
 	Path string
 
-	Element func(info *RouteInfo) *gas.Element
+	Component func(info *RouteInfo) *gas.Component
 
 	Exact     bool
 	Sensitive bool
 
 	Redirect string
 
-	RedirectName    string            // redirecting to route name
+	RedirectName    string  // redirecting to route name
 	RedirectParams  gas.Map // pararms for rederecting to route
 	RedirectQueries gas.Map // queries for rederecting to route
 
@@ -41,7 +40,7 @@ type Ctx struct {
 
 	Before, After func(to, from *RouteInfo) error
 
-	notFound *gas.E // rendered user not found page
+	notFound      *gas.C // rendered user not found page
 	renderedPaths gas.Map
 }
 
@@ -55,7 +54,7 @@ type Settings struct {
 	GetUserConfirmation func() bool
 	ForceRefresh        bool
 
-	NotFound func() *gas.Element
+	NotFound func() *gas.Component
 
 	MaxRouteParams int
 }
@@ -89,11 +88,11 @@ type ChangeDynamic func(name string, params, queries gas.Map, replace bool)
 // Init initialize router ctx
 func (ctx *Ctx) Init() {
 	if ctx.Settings.NotFound == nil {
-		ctx.notFound = gas.NE(&gas.E{}, "404. Page not found")
+		ctx.notFound = gas.ElementToComponent(gas.NE(&gas.E{}, "404. Page not found"))
 	} else {
 		ctx.notFound = ctx.Settings.NotFound()
 	}
-	ctx.notFound.IsPointer = false
+	ctx.notFound.NotPointer = true
 
 	if ctx.Settings.HashMode {
 		ctx.Settings.BaseName = "#" + ctx.Settings.HashSuffix + ctx.Settings.BaseName
@@ -191,53 +190,25 @@ func decomposeRouteChildes(route Route) []Route {
 }
 
 // GetRouter return gas router element
-func (ctx *Ctx) GetRouter() *gas.Element {
+func (ctx *Ctx) GetRouter() *gas.C {
 	root := &routerComponent{
 		ctx: ctx,
 	}
+
+	updateEvent := event(func(e dom.Event) {
+		root.update()
+	})
 
 	c := &gas.C{
 		NotPointer: true,
 		Root:       root,
 		Hooks: gas.Hooks{
 			Mounted: func() error {
-				root.updateEvent = event(func(e dom.Event) {
-					from := root.lastRouteInfo
-
-					root.c.Update()
-
-					to := root.lastRouteInfo
-					if to.Route.After != nil {
-						_, err := to.Route.After(&MiddlewareInfo{
-							To:            to,
-							From:          from,
-							Change:        ctx.CustomPush,
-							ChangeDynamic: ctx.CustomPushDynamic,
-						})
-						if err != nil {
-							root.c.ConsoleError(err.Error())
-							return
-						}
-					}
-
-					if ctx.After != nil {
-						err := ctx.After(to, from)
-						if err != nil {
-							root.c.ConsoleError(err.Error())
-							return
-						}
-					}
-				})
-
-				windowAddEventListener("popstate", root.updateEvent)
-				windowAddEventListener(ChangeRouteEvent, root.updateEvent)
-
+				windowAddEventListener("popstate", updateEvent)
 				return nil
 			},
 			BeforeDestroy: func() error {
-				windowRemoveEventListener("popstate", root.updateEvent)
-				windowRemoveEventListener(ChangeRouteEvent, root.updateEvent)
-
+				windowRemoveEventListener("popstate", updateEvent)
 				return nil
 			},
 		},
@@ -246,7 +217,7 @@ func (ctx *Ctx) GetRouter() *gas.Element {
 
 	ctx.This = root
 
-	return c.Init()
+	return c
 }
 
 type routerComponent struct {
@@ -254,12 +225,11 @@ type routerComponent struct {
 	ctx *Ctx
 
 	lastRouteInfo *RouteInfo
-	lastItem      *gas.Element
+	lastItem      *gas.Component
 	lastRoute     string
-	updateEvent   js.Func
 }
 
-func (root *routerComponent) Render() []interface{} {
+func (root *routerComponent) Render() *gas.E {
 	if !strings.HasPrefix(root.ctx.getPath(), root.ctx.Settings.BaseName) {
 		root.ctx.ChangeRoute("/", true)
 	}
@@ -269,22 +239,20 @@ func (root *routerComponent) Render() []interface{} {
 		currentPath = "/"
 	}
 
-	return gas.CL(
-		gas.NE(
-			&gas.E{
-				Attrs: func() gas.Map {
-					return gas.Map{
-						"data-path": currentPath,
-						"id":        "gas-router_route-wraper",
-					}
-				},
+	return gas.NE(
+		&gas.E{
+			Attrs: func() gas.Map {
+				return gas.Map{
+					"data-path": currentPath,
+					"id":        "gas-router_route-wraper",
+				}
 			},
-			root.findRoute(currentPath),
-		),
+		},
+		root.findRoute(currentPath),
 	)
 }
 
-func (root *routerComponent) findRoute(currentPath string) *gas.Element {
+func (root *routerComponent) findRoute(currentPath string) *gas.Component {
 	ctx := root.ctx
 	if currentPath == root.lastRoute {
 		return root.lastItem
@@ -361,13 +329,40 @@ func (root *routerComponent) findRoute(currentPath string) *gas.Element {
 		root.lastRouteInfo = to
 		root.lastRoute = currentPath
 
-		root.lastItem = route.Element(to)
-		root.lastItem.IsPointer = false
+		root.lastItem = route.Component(to)
+		root.lastItem.NotPointer = true
 
 		return root.lastItem
 	}
 
 	return ctx.notFound
+}
+
+func (root *routerComponent) update() {
+	from := root.lastRouteInfo
+	root.c.Update()
+
+	to := root.lastRouteInfo
+	if to.Route.After != nil {
+		_, err := to.Route.After(&MiddlewareInfo{
+			To:            to,
+			From:          from,
+			Change:        root.ctx.CustomPush,
+			ChangeDynamic: root.ctx.CustomPushDynamic,
+		})
+		if err != nil {
+			root.c.ConsoleError(err.Error())
+			return
+		}
+	}
+
+	if root.ctx.After != nil {
+		err := root.ctx.After(to, from)
+		if err != nil {
+			root.c.ConsoleError(err.Error())
+			return
+		}
+	}
 }
 
 // ChangeRoute change current route

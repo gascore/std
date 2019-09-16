@@ -31,7 +31,7 @@ func (config *Config) Normalize() {
 	}
 }
 
-func GetModal(config *Config) gas.DynamicElement {
+func GetModal(config *Config) gas.DynamicComponent {
 	config.Normalize()
 	containerStyles := fmt.Sprintf("max-height: %s; max-width: %s;", config.MaxHeight, config.MaxWidth)
 
@@ -54,7 +54,11 @@ func GetModal(config *Config) gas.DynamicElement {
 		}
 	}
 
-	return func(e gas.External) *gas.E {
-		return f.Init(true, func() []interface{} {return gas.CL(gas.NE(&gas.E{Tag:"div", Attrs: func() gas.Map { return gas.Map{"class": modalWindowClass(),} },},gas.NE(&gas.E{Tag:"div", Handlers: map[string]gas.Handler{"click": func(e gas.Event) {disable() }, },Attrs: func() gas.Map { return gas.Map{"class": "modal-window_overlay",} },},),gas.NE(&gas.E{Tag:"div", Attrs: func() gas.Map { return gas.Map{"class": "modal-window_container","style": containerStyles,} },},e.Body,),),)})
+	var e gas.External 
+	c := f.Init(true, func() *gas.E {return gas.NE(&gas.E{Tag:"div", Attrs: func() gas.Map { return gas.Map{"class": modalWindowClass(),} },},gas.NE(&gas.E{Tag:"div", Handlers: map[string]gas.Handler{"click": func(e gas.Event) {disable() }, },Attrs: func() gas.Map { return gas.Map{"class": "modal-window_overlay",} },},),gas.NE(&gas.E{Tag:"div", Attrs: func() gas.Map { return gas.Map{"class": "modal-window_container","style": containerStyles,} },},e.Body,),)})
+	
+	return func(newE gas.External) *gas.C {
+		e = newE
+		return c
 	}
 }

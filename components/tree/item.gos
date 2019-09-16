@@ -4,7 +4,7 @@ import (
     "github.com/gascore/gas"
 )
 
-func renderItem(item *Item, config *Config) *gas.E {
+func renderItem(item *Item, config *Config) *gas.C {
     f := &gas.F{}
 
     onClick := func() {
@@ -18,7 +18,8 @@ func renderItem(item *Item, config *Config) *gas.E {
     }
 
     return f.Init(true, $htmlF{
-        <div g-if="item.IsDirectory" class="tree-item tree-directory-item">
+    <div class="tree-item">
+        <div g-if="item.IsDirectory" class="tree-directory-item">
             <div class="tree-item-header" @click="onClick()">
                 <button class="tree-item-header__hide-btn">
                     <span g-if="!item.IsOpen" g-html="config.ArrowRight"></span>
@@ -39,7 +40,7 @@ func renderItem(item *Item, config *Config) *gas.E {
                 </li>
             </ul>
         </div>
-        <div g-else class="tree-item tree-item_name-only" @click="onClick()">
+        <div g-else class="tree-item_name-only" @click="onClick()">
             <span g-if="item.Renderer == nil" class="tree-item_name">
                 {{ item.Name }}
             </span>
@@ -47,5 +48,6 @@ func renderItem(item *Item, config *Config) *gas.E {
                 <e run="item.Renderer(item)"></e>
             </span>
         </div>
+    </div>
     }$)
 }

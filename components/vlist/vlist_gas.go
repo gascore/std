@@ -67,7 +67,7 @@ type vlistEl struct {
 	renderer Renderer
 }
 
-func GetList(config *Config, renderer Renderer) *gas.E {
+func GetList(config *Config, renderer Renderer) *gas.C {
 	config.normalize()
 
 	if renderer == nil {
@@ -90,26 +90,32 @@ func GetList(config *Config, renderer Renderer) *gas.E {
 			},
 		},
 		Root: root,
+		NotPointer: true,
 		Hooks: gas.Hooks{
 			Mounted: func() error {
-				root.onScroll()
+				err := root.calculateItems()
+				if err != nil {
+					return err
+				}
+
+				go root.c.Update()
+				
 				return nil
 			},
 		},
 	}
 	root.c = c
 
-	return c.Init()
+	return c
 }
 
-func (root *vlistEl) Render() []interface{} {
-	return gas.CL(gas.NE(&gas.E{Tag:"div", Handlers: map[string]gas.Handler{"scroll": func(e gas.Event) {root.onScroll() }, },Attrs: func() gas.Map { return gas.Map{"class": "vlist",} },},gas.NE(&gas.E{Tag:"div", Attrs: func() gas.Map { return gas.Map{"class": "vlist-padding","style": fmt.Sprintf("%s: %dpx;", root.config.directionV, root.scrollHeight),} },},),root.genItems(),),)
+func (root *vlistEl) Render() *gas.E {
+	return gas.NE(&gas.E{Tag:"div", Handlers: map[string]gas.Handler{"scroll": func(e gas.Event) {root.onScroll() }, },Attrs: func() gas.Map { return gas.Map{"class": "vlist",} },},gas.NE(&gas.E{Tag:"div", Attrs: func() gas.Map { return gas.Map{"class": "vlist-padding","style": fmt.Sprintf("%s: %dpx;", root.config.directionV, root.scrollHeight),} },},),root.genItems(),)
 }
 
 func (root *vlistEl) onScroll() {
 	dom.GetWindow().RequestAnimationFrame(func(timeStep js.Value) {
-		var err error
-		root.items, err = root.calculateItems()
+		err := root.calculateItems()
 		if err != nil {
 			dom.ConsoleError(err.Error())
 			return
@@ -119,24 +125,24 @@ func (root *vlistEl) onScroll() {
 	})
 }
 
-func (root *vlistEl) calculateItems() ([]interface{}, error) {
+func (root *vlistEl) calculateItems() error {
 	_el := root.c.Element.BEElement().(*dom.Element)
 	if _el == nil {
-		return []interface{}{}, nil
+		return nil
 	}
 
 	var scrollTop, offsetHeight int
 	if root.config.Direction {
-		scrollTop = _el.ChildNodes()[0].ScrollTop()
+		scrollTop = _el.ScrollTop()
 		offsetHeight = _el.OffsetHeight()
 	} else {
-		scrollTop = _el.ChildNodes()[0].ScrollLeft()
+		scrollTop = _el.ScrollLeft()
 		offsetHeight = _el.OffsetWidth()
 	}
 
 	endRaw, err := strconv.Atoi(fmt.Sprintf("%.0f", float64(offsetHeight)/float64(root.config.childSize)))
 	if err != nil {
-		return []interface{}{}, err
+		return err
 	}
 
 	smoother := endRaw/10
@@ -153,28 +159,20 @@ func (root *vlistEl) calculateItems() ([]interface{}, error) {
 	if root.config.Change != nil {
 		err = root.config.Change(start, end)
 		if err != nil {
-			return []interface{}{}, err
+			return err
 		}
 	}
 
-	return getSlice(root.config.Items, start, end), nil
+	var childes []interface{}
+	for i, item := range getSlice(root.config.Items, start, end) {
+		childes = append(childes, root.renderer(item, i, start))
+	}
+	root.items = childes
+
+	return nil
 }
 
 func (root *vlistEl) genItems() *gas.E {
-	if len(root.items) == 0 {
-		var err error
-		root.items, err = root.calculateItems()
-		if err != nil {
-			dom.ConsoleError(err.Error())
-			return nil
-		}
-	}
-
-	var items []interface{}
-	for i, item := range root.items {
-		items = append(items, root.renderer(item, i, root.start))
-	}
-
 	return gas.NE(
 		&gas.E{
 			Tag: root.config.ItemsWrapperTag,
@@ -187,7 +185,7 @@ func (root *vlistEl) genItems() *gas.E {
 				}
 			},
 		},
-		items,
+		root.items...,
 	)
 }
 

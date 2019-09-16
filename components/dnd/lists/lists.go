@@ -37,7 +37,7 @@ type DndListsParent interface {
 }
 
 // Lists return dnd-lists component
-func Lists(config *Config) gas.DynamicElement {
+func Lists(config *Config) gas.DynamicComponent {
 	switch {
 	case config.This == nil:
 		dom.ConsoleError("invalid This: config.This == nil")
@@ -64,15 +64,6 @@ func Lists(config *Config) gas.DynamicElement {
 
 	c :=  &gas.C{
 		Root: root,
-		Element: &gas.E{
-			Tag: config.Tag,
-			Attrs: func() gas.Map {
-				return gas.Map{
-					"data-dnd-field": config.FieldName,
-					"class":          config.GroupClass,
-				}
-			},
-		},
 		Hooks: gas.Hooks{
 			Mounted: func() error {
 				_el := root.c.Element.BEElement().(*dom.Element)
@@ -195,10 +186,9 @@ func Lists(config *Config) gas.DynamicElement {
 	}
 	root.c = c
 
-	el := c.Init()
-	return func(e gas.External) *gas.E {
+	return func(e gas.External) *gas.C {
 		root.e = e
-		return el
+		return c
 	}
 }
 
@@ -208,7 +198,7 @@ type dndListEl struct {
 	config *Config
 }
 
-func(root *dndListEl) Render() []interface{} {
+func(root *dndListEl) Render() *gas.E {
 	var body []interface{}
 	config := root.config
 	e := root.e
@@ -358,14 +348,25 @@ func(root *dndListEl) Render() []interface{} {
 		}
 		childRoot.C = childC
 
-		body = append(body, childC.Init())
+		body = append(body, childC)
 	}
 
 	if e.Slots != nil && e.Slots["footer"] != nil {
 		body = append(body, e.Slots["footer"])
 	}
-
-	return body
+	
+	return gas.NE(
+		&gas.E{
+			Tag: config.Tag,
+			Attrs: func() gas.Map {
+				return gas.Map{
+					"data-dnd-field": config.FieldName,
+					"class":          config.GroupClass,
+				}
+			},
+		},
+		body...
+	)
 }
 
 func dropEvent(_x *dom.Element, config *Config, event dom.Event) error {

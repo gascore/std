@@ -55,7 +55,7 @@ func (config *Config) normalize() {
 }
 
 // GetDNDFree return free draggable component
-func GetDNDFree(config *Config) gas.DynamicElement {
+func GetDNDFree(config *Config) gas.DynamicComponent {
 	config.normalize()
 
 	if config.XDisabled && config.YDisabled {
@@ -63,23 +63,14 @@ func GetDNDFree(config *Config) gas.DynamicElement {
 		return nil
 	}
 
-	childUUID := uuid4.New().String()
-
 	root := &dndEl{
-		config:    config,
-		childUUID: childUUID,
+		config:  config,
+		childID: uuid4.New().String(),
 	}
 
 	c := &gas.C{
 		Root: root,
-		Element: &gas.E{
-			Tag: config.Tag,
-			Attrs: func() gas.Map {
-				return gas.Map{
-					"class": config.Class + "-wrap",
-				}
-			},
-		},
+		NotPointer: true,
 		Hooks: gas.Hooks{
 			Mounted: func() error {
 				var _boundary *dom.Element
@@ -154,7 +145,7 @@ func GetDNDFree(config *Config) gas.DynamicElement {
 				root.startEvent = event(func(event dom.Event) {
 					if config.Handle == "" {
 						_target := event.Target()
-						if _target.GetAttribute("data-i").String() != root.childUUID && !root.c.Element.BEElement().(*dom.Element).Contains(_target) {
+						if _target.GetAttribute("data-i").String() != root.childID && !root.c.Element.BEElement().(*dom.Element).Contains(_target) {
 							return
 						}
 					} else if !event.Target().ClassList().Contains(config.Handle) {
@@ -190,7 +181,7 @@ func GetDNDFree(config *Config) gas.DynamicElement {
 					root.isActive = true
 
 					if _boundary != nil {
-						rect := dom.Doc.QuerySelector("[data-i='" + root.childUUID + "']").JSValue().Call("getBoundingClientRect")
+						rect := dom.Doc.QuerySelector("[data-dnd-free-id='" + root.childID + "']").JSValue().Call("getBoundingClientRect")
 
 						root.cursorOffsetLeft = clientX - rect.Get("left").Int()
 						root.cursorOffsetTop = clientY - rect.Get("top").Int()
@@ -248,18 +239,17 @@ func GetDNDFree(config *Config) gas.DynamicElement {
 	}
 	root.c = c
 
-	el := c.Init()
-	return func(e gas.External) *gas.E {
+	return func(e gas.External) *gas.C {
 		root.e = e
-		return el
+		return c
 	}
 }
 
 type dndEl struct {
-	c         *gas.C
-	e         gas.External
-	config    *Config
-	childUUID string
+	c       *gas.C
+	e       gas.External
+	config  *Config
+	childID string
 
 	initialX int
 	initialY int
@@ -279,30 +269,19 @@ type dndEl struct {
 	moveEvent  js.Func
 }
 
-func (root *dndEl) Render() []interface{} {
+func (root *dndEl) Render() *gas.E {
 	subRoot := &dndSubEl{
-		e: root.e,
+		e:       root.e,
+		isActive: root.isActive,
+		config:  root.config,
+		offsetX: root.offsetX,
+		offsetY: root.offsetY,
+		childID: root.childID,
 	}
 
 	c := &gas.C{
-		Root:               subRoot,
-		NotPointer:         true,
-		ElementIsImportant: true,
-		Element: &gas.E{
-			UUID: root.childUUID,
-			Attrs: func() gas.Map {
-				return gas.Map{
-					"style": fmt.Sprintf("transform: translate3d(%dpx, %dpx, 0px)", root.offsetX, root.offsetY),
-					"class": func() string {
-						var isActiveClass string
-						if root.isActive {
-							isActiveClass = root.config.Class + "-active"
-						}
-						return root.config.Class + " " + isActiveClass
-					}(),
-				}
-			},
-		},
+		Root:       subRoot,
+		NotPointer: true,
 		Hooks: gas.Hooks{
 			Mounted: func() error {
 				_el := subRoot.c.Element.BEElement().(*dom.Element)
@@ -318,16 +297,48 @@ func (root *dndEl) Render() []interface{} {
 	}
 	subRoot.c = c
 
-	return gas.CL(c.Init())
+	return gas.NE(
+		&gas.E{
+			Tag: root.config.Tag,
+			Attrs: func() gas.Map {
+				return gas.Map{
+					"class": root.config.Class + "-wrap",
+				}
+			},
+		}, c,
+	)
 }
 
 type dndSubEl struct {
 	c *gas.C
 	e gas.External
+
+	config   *Config
+	childID  string
+	isActive bool
+	offsetX  int
+	offsetY  int
 }
 
-func (root *dndSubEl) Render() []interface{} {
-	return root.e.Body
+func (root *dndSubEl) Render() *gas.E {
+	return gas.NE(
+		&gas.E{
+			Attrs: func() gas.Map {
+				return gas.Map{
+					"style": fmt.Sprintf("transform: translate3d(%dpx, %dpx, 0px)", root.offsetX, root.offsetY),
+					"class": func() string {
+						var isActiveClass string
+						if root.isActive {
+							isActiveClass = root.config.Class + "-active"
+						}
+						return root.config.Class + " " + isActiveClass
+					}(),
+					"data-dnd-free-id": root.childID,
+				}
+			},
+		},
+		root.e.Body...,
+	)
 }
 
 func addEvent(e dom.Node, typ string, h js.Func) {

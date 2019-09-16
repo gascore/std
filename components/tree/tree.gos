@@ -27,7 +27,7 @@ type Item struct {
 	Data interface{} // Your custom data
 }
 
-func (config Config) Init() *gas.E {
+func (config Config) Init() *gas.C {
   if config.Items == nil {
 		dom.ConsoleError("invalid items")
 		return nil
@@ -48,7 +48,7 @@ func (config Config) Init() *gas.E {
   c := &gas.C{Root: root}
   root.c = c
 
-  return c.Init()
+  return c
 }
 
 type treeEl struct {
@@ -58,7 +58,7 @@ type treeEl struct {
   config *Config
 }
 
-func (root *treeEl) Render() []interface{} {
+func (root *treeEl) Render() *gas.E {
   return $html{
     <div class="tree">
         <div class="tree-header">

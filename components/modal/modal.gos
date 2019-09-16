@@ -31,7 +31,7 @@ func (config *Config) Normalize() {
 	}
 }
 
-func GetModal(config *Config) gas.DynamicElement {
+func GetModal(config *Config) gas.DynamicComponent {
 	config.Normalize()
 	containerStyles := fmt.Sprintf("max-height: %s; max-width: %s;", config.MaxHeight, config.MaxWidth)
 
@@ -54,14 +54,18 @@ func GetModal(config *Config) gas.DynamicElement {
 		}
 	}
 
-	return func(e gas.External) *gas.E {
-		return f.Init(true, $htmlF{
-			<div :class="modalWindowClass()">
-				<div class="modal-window_overlay" @click="disable()"></div>
-				<div class="modal-window_container" :style="containerStyles">
-					<e run="e.Body"></e>
-				</div>
-			</div>	
-		}$)
+	var e gas.External 
+	c := f.Init(true, $htmlF{
+		<div :class="modalWindowClass()">
+			<div class="modal-window_overlay" @click="disable()"></div>
+			<div class="modal-window_container" :style="containerStyles">
+				<e run="e.Body"></e>
+			</div>
+		</div>	
+	}$)
+	
+	return func(newE gas.External) *gas.C {
+		e = newE
+		return c
 	}
 }
