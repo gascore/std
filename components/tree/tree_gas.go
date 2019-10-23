@@ -6,9 +6,8 @@ import (
 )
 
 type Config struct {
-	Name 		    string
-	CanBeHidden bool
-	Items       []*Item
+	Name  string
+	Items []*Item
 
   OnItemClick func(item *Item) error
 
@@ -59,14 +58,5 @@ type treeEl struct {
 }
 
 func (root *treeEl) Render() *gas.E {
-  return gas.NE(&gas.E{Tag:"div", Attrs: func() gas.Map { return gas.Map{"class": "tree",} },},gas.NE(&gas.E{Tag:"div", Attrs: func() gas.Map { return gas.Map{"class": "tree-header",} },},gas.NE(&gas.E{Tag:"b", },``, root.config.Name , ),func()interface{} { if root.config.CanBeHidden { return gas.NE(&gas.E{Tag:"button", Handlers: map[string]gas.Handler{"click": func(e gas.Event) {root.toggleIsHidden() }, },Attrs: func() gas.Map { return gas.Map{"class": "tree-hide-btn",} },}, func()interface{} { if root.isHidden { return gas.NE(&gas.E{Tag:"span", },`                    Show                `,) } else { return gas.NE(&gas.E{Tag:"span", },`                    Hide                `,) }; return nil }(),) }; return nil }(),),func()interface{} { if !root.isHidden { return gas.NE(&gas.E{Tag:"ul", Attrs: func() gas.Map { return gas.Map{"class": "tree-items",} },},func()[]interface{}{var c5566178193809771612 []interface{}; for _, nItem := range root.config.Items { c5566178193809771612 = append(c5566178193809771612, gas.NE(&gas.E{Tag:"li", },renderItem(nItem, root.config),)) }; return c5566178193809771612}(),) }; return nil }(),)
-}
-
-func (root *treeEl) toggleIsHidden() {
-  if !root.config.CanBeHidden {
-    return
-  }
-
-  root.isHidden = !root.isHidden
-  go root.c.Update()
+  return gas.NE(&gas.E{Tag:"div", Attrs: func() gas.Map { return gas.Map{"class": "tree",} },},gas.NE(&gas.E{Tag:"div", Attrs: func() gas.Map { return gas.Map{"class": "tree-header",} },},``, root.config.Name , ),gas.NE(&gas.E{Tag:"ul", Attrs: func() gas.Map { return gas.Map{"class": "tree-items",} },},func()[]interface{}{var c8641486337242112828 []interface{}; for _, nItem := range root.config.Items { c8641486337242112828 = append(c8641486337242112828, gas.NE(&gas.E{Tag:"li", },renderItem(nItem, root.config),)) }; return c8641486337242112828}(),),)
 }

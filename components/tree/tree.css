@@ -1,5 +1,6 @@
 .tree .tree-header {
     display: flex;
+    font-weight: bold;
 }
 
 .tree .tree-header .tree-hide-btn {

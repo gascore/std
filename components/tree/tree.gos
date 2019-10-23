@@ -6,9 +6,8 @@ import (
 )
 
 type Config struct {
-	Name 		    string
-	CanBeHidden bool
-	Items       []*Item
+	Name  string
+	Items []*Item
 
   OnItemClick func(item *Item) error
 
@@ -62,32 +61,13 @@ func (root *treeEl) Render() *gas.E {
   return $html{
     <div class="tree">
         <div class="tree-header">
-            <b>
-                {{ root.config.Name }}
-            </b>
-            <button class="tree-hide-btn" @click="root.toggleIsHidden()" g-if="root.config.CanBeHidden">
-                <span g-if="root.isHidden">
-                    Show
-                </span>
-                <span g-else>
-                    Hide
-                </span>
-            </button>
+            {{ root.config.Name }}
         </div>
-        <ul class="tree-items" g-if="!root.isHidden">
+        <ul class="tree-items">
             <li g-for='_, nItem := range root.config.Items'>
                 <e run="renderItem(nItem, root.config)"></e>
             </li>
         </ul>
     </div>
   }$
-}
-
-func (root *treeEl) toggleIsHidden() {
-  if !root.config.CanBeHidden {
-    return
-  }
-
-  root.isHidden = !root.isHidden
-  go root.c.Update()
 }
